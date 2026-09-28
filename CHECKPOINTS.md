@@ -9,7 +9,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 | CP-1 | Entities ถูกต้อง | ✅ PASSED |
 | CP-2 | ตัวเลขตรงกับเว็บต้นแบบ | ✅ PASSED |
 | CP-3 | Use Cases ทำงานถูก | ✅ PASSED |
-| CP-4 | บันทึกข้อมูลในเครื่องได้ | 🔒 |
+| CP-4 | บันทึกข้อมูลในเครื่องได้ | ✅ PASSED |
 | CP-5 | ใช้งานฟอร์มได้ | 🔒 |
 | CP-6 | Sankey ถูกต้อง | 🔒 |
 | CP-7 | จัดการหลายแผนได้ | 🔒 |
@@ -101,3 +101,17 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - เปลี่ยนความถี่จาก "ครั้งเดียว" เป็นอย่างอื่น → ลบวันที่ทิ้งอัตโนมัติ
   - ไฟล์เทสต์ของ Application ได้รับยกเว้นกฎ ESLint เพราะต้องใช้ InMemory repository จริงในการทดสอบ
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 4**
+
+## CP-4 บันทึกข้อมูลในเครื่องได้
+- วันที่: 2026-09-28
+- ผู้ตรวจ: Claude (รอเจ้าของโปรเจกต์ตรวจซ้ำ)
+- ไฟล์ที่สร้าง: `infrastructure/schemas/planSchema.ts` (Zod), `infrastructure/storage/LocalStoragePlanRepository.ts`, `infrastructure/schemas/planJson.ts`, `di/container.ts`
+- Automated: ✅ `npm run gate` ผ่าน — test 155/155 (16 ไฟล์)
+  - Contract test 9 ข้อชุดเดียวกับ CP-3 ผ่านกับ `LocalStoragePlanRepository` (jsdom)
+  - `"{abc"` ใน localStorage → `list()` คืน `[]` ไม่ throw + เตือนใน console
+  - มีแผนเสียปนกับแผนดี → ข้ามเฉพาะแผนที่เสีย, บันทึกใหม่ทับข้อมูลเสียได้
+  - export → import → ได้แผนเท่าเดิม; ไฟล์ผิด 5 แบบ → ข้อความ error ภาษาไทย
+  - `fixtures/reference-plan.json` ผ่าน Zod schema
+- Manual: n/a (ยังไม่มี UI — จะตรวจการรีเฟรชหน้าแล้วข้อมูลยังอยู่ใน CP-5)
+- หมายเหตุ: `di/container.ts` ถ้าไม่มี localStorage (ตอน build หรือเบราว์เซอร์บล็อก) จะใช้ InMemory แทน แอปไม่พัง
+- สถานะ: **PASSED → อนุญาตเริ่ม Phase 5**

@@ -6,7 +6,7 @@ import referencePlanJson from "../../../fixtures/reference-plan.json";
 import type { Plan } from "@/domain/entities/Plan";
 
 // JSON ถูกอ่านเป็น string ธรรมดา จึงต้องบอก TypeScript ว่าเป็น Plan
-// (Phase 4 จะใช้ Zod ตรวจ JSON จริงแทนการ cast)
+// (Domain ใช้ Zod ไม่ได้ จึง cast ไว้ — ส่วน planJson.test.ts พิสูจน์แล้วว่า fixture ผ่าน schema)
 export const goldenPlan1 = referencePlanJson as Plan;
 
 export const goldenPlan2: Plan = {

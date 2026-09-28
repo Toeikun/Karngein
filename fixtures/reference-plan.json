@@ -1,0 +1,44 @@
+{
+  "id": "reference",
+  "name": "ข้อมูลตัวอย่างจากเว็บต้นแบบ (Golden Data ชุดที่ 1)",
+  "updatedAt": "2026-09-26T00:00:00.000Z",
+  "incomes": [
+    { "id": "inc-salary", "name": "เงินเดือน", "amount": 30000, "frequency": "monthly" },
+    { "id": "inc-bonus", "name": "โบนัสประจำปี", "amount": 50000, "frequency": "yearly" },
+    {
+      "id": "inc-gift",
+      "name": "ขายสินทรัพย์/ของขวัญ",
+      "amount": 30000,
+      "frequency": "one-time",
+      "date": "2026-09-26"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "exp-main",
+      "name": "รายจ่ายหลัก",
+      "category": "essential",
+      "items": [
+        { "id": "exp-main-sso", "name": "ประกันสังคม", "amount": 9000, "frequency": "yearly" },
+        { "id": "exp-main-food", "name": "ค่าอาหาร", "amount": 8000, "frequency": "monthly" },
+        { "id": "exp-main-travel", "name": "ค่าเดินทาง", "amount": 3000, "frequency": "monthly" }
+      ]
+    },
+    {
+      "id": "exp-invest",
+      "name": "การลงทุน",
+      "category": "investment",
+      "items": [
+        { "id": "exp-invest-dca", "name": "DCA กองทุนรวม", "amount": 5000, "frequency": "monthly" }
+      ]
+    },
+    {
+      "id": "exp-lifestyle",
+      "name": "Lifestyle & ท่องเที่ยว",
+      "category": "reward",
+      "items": [],
+      "amount": 50000,
+      "frequency": "yearly"
+    }
+  ]
+}

@@ -8,12 +8,14 @@ import { describe, expect, it } from "vitest";
  */
 const eslint = new ESLint();
 
-async function lintDomainImport(importLine: string) {
-  const [result] = await eslint.lintText(`${importLine}\nexport const x = 1;\n`, {
-    filePath: "src/domain/entities/Example.ts",
-  });
+async function lintImport(importLine: string, filePath: string) {
+  const [result] = await eslint.lintText(`${importLine}\nexport const x = 1;\n`, { filePath });
   return result.messages.filter((m) => m.ruleId === "no-restricted-imports");
 }
+
+const lintDomainImport = (line: string) => lintImport(line, "src/domain/entities/Example.ts");
+const lintApplicationImport = (line: string) =>
+  lintImport(line, "src/application/usecases/Example.ts");
 
 describe("Domain ห้าม import ชั้นอื่น", () => {
   it.each([
@@ -31,5 +33,22 @@ describe("Domain ห้าม import ชั้นอื่น", () => {
   it("อนุญาต: import ภายใน domain ด้วยกัน", async () => {
     expect(await lintDomainImport('import { round2 } from "@/domain/entities/Money";')).toHaveLength(0);
     expect(await lintDomainImport('import { round2 } from "./Money";')).toHaveLength(0);
+  });
+});
+
+describe("Application ห้าม import Infrastructure / Presentation / framework", () => {
+  it.each([
+    'import { useState } from "react";',
+    'import { getFirestore } from "firebase/firestore";',
+    'import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRepository";',
+    'import { x } from "@/presentation/components/Button";',
+    'import { x } from "../../infrastructure/storage/InMemoryPlanRepository";',
+  ])("ห้าม: %s", async (line) => {
+    expect(await lintApplicationImport(line)).toHaveLength(1);
+  });
+
+  it("อนุญาต: import Domain และ Port", async () => {
+    expect(await lintApplicationImport('import { summarize } from "@/domain/services/summarize";')).toHaveLength(0);
+    expect(await lintApplicationImport('import type { PlanRepository } from "../ports/PlanRepository";')).toHaveLength(0);
   });
 });

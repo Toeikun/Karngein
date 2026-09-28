@@ -8,7 +8,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 | CP-0 | โปรเจกต์พร้อม | ✅ PASSED |
 | CP-1 | Entities ถูกต้อง | ✅ PASSED |
 | CP-2 | ตัวเลขตรงกับเว็บต้นแบบ | ✅ PASSED |
-| CP-3 | Use Cases ทำงานถูก | 🔒 |
+| CP-3 | Use Cases ทำงานถูก | ✅ PASSED |
 | CP-4 | บันทึกข้อมูลในเครื่องได้ | 🔒 |
 | CP-5 | ใช้งานฟอร์มได้ | 🔒 |
 | CP-6 | Sankey ถูกต้อง | 🔒 |
@@ -74,3 +74,30 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 - Manual: n/a (Phase นี้ไม่มี UI)
 - หมายเหตุ: ตอนคืนค่าไฟล์หลัง mutation check ใช้ `git checkout` ไม่ได้ เพราะไฟล์ยังไม่ถูก commit → กู้จากไฟล์สำรองที่ทำไว้ก่อน (บทเรียน: สำรองไฟล์ หรือ commit ก่อนทดลองแก้เสมอ)
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 3**
+
+## CP-3 Use Cases ทำงานถูก
+- วันที่: 2026-09-28
+- ผู้ตรวจ: Claude (รอเจ้าของโปรเจกต์ตรวจซ้ำ)
+- ไฟล์ที่สร้าง:
+  - `src/application/ports/PlanRepository.ts` — Port (interface) ของที่เก็บแผน
+  - `src/application/context.ts` (สร้าง id / อ่านเวลา), `src/application/result.ts` (ผลสำเร็จ/ไม่สำเร็จ)
+  - `src/application/usecases/` — incomes, expenses, plans, normalize
+  - `src/infrastructure/storage/InMemoryPlanRepository.ts` — Adapter ตัวแรก
+  - `src/infrastructure/__tests__/planRepository.contract.ts` — ชุดเทสต์กลางของทุก Repository
+- Automated: ✅ `npm run gate` ผ่าน — test 130/130 (14 ไฟล์)
+  - `addIncome` → รายได้ +1 และแผนเดิมไม่ถูกแก้ (ทดสอบด้วย `deepFreeze` — ถ้าแอบแก้จะ throw)
+  - `addIncome` amount ติดลบ → `{ ok: false, errors: [amount] }` แผนไม่เปลี่ยน
+  - `removeExpenseItem` รายการสุดท้าย → กลุ่มยังอยู่ ยอดกลุ่ม = 0
+  - `organizeExpenses` → essential → wants → investment → emergency → reward (หมวดเดียวกันคงลำดับเดิม)
+  - `savePlan` → `loadPlan` → ได้ข้อมูลเท่ากัน, `listPlans` เรียงจากแก้ไขล่าสุด
+  - Contract test 9 ข้อ ผ่านกับ `InMemoryPlanRepository` (รวม: get ไม่เจอ → null, save ซ้ำ = เขียนทับ, ของที่คืนเป็นสำเนา)
+  - Architecture: ESLint ห้าม Application import React / Next / Firebase / Infrastructure / Presentation (5 กรณีต้องห้าม + 2 กรณีอนุญาต)
+- 🧪 Mutation check: ทำให้ `addIncome` แอบ `push` เข้าแผนเดิม → เทสต์ล้ม 4 ข้อ (`object is not extensible`) → คืนไฟล์จากสำรอง → ผ่าน 130/130
+- Manual: n/a (Phase นี้ไม่มี UI)
+- หมายเหตุ / การตัดสินใจ:
+  - Use case ที่แก้แผน คืนค่าเป็น `PlanResult` (`ok: true/false`) แทนการ throw → หน้าฟอร์มแสดง error ทุกช่องได้ง่าย
+  - `UseCaseContext` (generateId, now) ถูกส่งเข้ามา → ในเทสต์ id เป็น `id-1, id-2, ...` และเวลาตายตัว
+  - เพิ่มรายการย่อยแรกให้กลุ่ม → ลบ amount ของกลุ่มทิ้ง / ลบรายการย่อยสุดท้าย → กลุ่มได้ amount 0 รายเดือน
+  - เปลี่ยนความถี่จาก "ครั้งเดียว" เป็นอย่างอื่น → ลบวันที่ทิ้งอัตโนมัติ
+  - ไฟล์เทสต์ของ Application ได้รับยกเว้นกฎ ESLint เพราะต้องใช้ InMemory repository จริงในการทดสอบ
+- สถานะ: **PASSED → อนุญาตเริ่ม Phase 4**

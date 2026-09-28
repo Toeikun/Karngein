@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Plan } from "@/domain/entities/Plan";
+import { InMemoryActivePlanStore } from "@/infrastructure/storage/LocalStorageActivePlanStore";
 import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRepository";
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { createTestContext } from "../../application/__tests__/testContext";
@@ -12,7 +13,7 @@ async function renderApp(initialPlan?: Plan) {
   const repository = new InMemoryPlanRepository();
   if (initialPlan) await repository.save(initialPlan);
   const user = userEvent.setup();
-  render(<KarngeinApp repository={repository} ctx={createTestContext()} />);
+  render(<KarngeinApp repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
   await screen.findByRole("heading", { name: "แหล่งรายได้" });
   return { user, repository };
 }
@@ -148,7 +149,7 @@ describe("CP-5: บั๊กที่เจอตอนตรวจ Manual", () 
     const repository = new InMemoryPlanRepository();
     render(
       <StrictMode>
-        <KarngeinApp repository={repository} ctx={createTestContext()} />
+        <KarngeinApp repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />
       </StrictMode>,
     );
     await screen.findByRole("heading", { name: "แหล่งรายได้" });

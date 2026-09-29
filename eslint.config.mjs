@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
-              group: ["react", "react-dom", "react/*", "next", "next/*", "firebase", "firebase/*"],
+              regex: "^(react|react-dom|next|firebase)(/.*)?$",
               message: "Domain ต้องเป็น TypeScript ล้วน ห้ามใช้ React / Next.js / Firebase",
             },
             {
@@ -48,7 +48,7 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
-              group: ["react", "react-dom", "react/*", "next", "next/*", "firebase", "firebase/*"],
+              regex: "^(react|react-dom|next|firebase)(/.*)?$",
               message: "Application ห้ามใช้ React / Next.js / Firebase — ให้กำหนดเป็น Port แทน",
             },
             {
@@ -66,6 +66,35 @@ const eslintConfig = defineConfig([
             },
           ],
         },
+      ],
+    },
+  },
+  {
+    // Firebase ใช้ได้เฉพาะใน Infrastructure — ชั้นอื่นต้องผ่าน Port + di (PLAN.md ข้อ 6.2)
+    // Presentation ห้าม import Infrastructure ตรงๆ ต้องผ่าน di/container.ts
+    files: ["src/presentation/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}"],
+    ignores: ["src/presentation/__tests__/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { regex: "^firebase(/.*)?$", message: "Firebase ใช้ได้เฉพาะใน src/infrastructure/" },
+            {
+              group: ["@/infrastructure/*", "**/infrastructure/**"],
+              message: "Presentation ห้าม import Infrastructure ตรงๆ — เรียกผ่าน @/di/container",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/di/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [{ regex: "^firebase(/.*)?$", message: "Firebase ใช้ได้เฉพาะใน src/infrastructure/" }] },
       ],
     },
   },

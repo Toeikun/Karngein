@@ -17,6 +17,7 @@ interface PlanBarProps {
   plan: Plan;
   plans: PlanListItem[];
   run: RunUseCase;
+  storageNote: string;
   onSwitch: (id: string) => void;
   onCreate: () => void;
   onDelete: () => void;
@@ -24,7 +25,7 @@ interface PlanBarProps {
   onExport: () => string | null;
 }
 
-export function PlanBar({ plan, plans, run, onSwitch, onCreate, onDelete, onImport, onExport }: PlanBarProps) {
+export function PlanBar({ plan, plans, run, storageNote, onSwitch, onCreate, onDelete, onImport, onExport }: PlanBarProps) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -121,9 +122,7 @@ export function PlanBar({ plan, plans, run, onSwitch, onCreate, onDelete, onImpo
               {message.text}
             </p>
           )}
-          <p className="text-xs text-slate-500">
-            ข้อมูลเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น — ส่งออกไฟล์สำรองไว้ก่อนล้างข้อมูลเว็บหรือเปลี่ยนเครื่อง
-          </p>
+          <p className="text-xs text-slate-500">{storageNote}</p>
         </div>
       )}
     </section>

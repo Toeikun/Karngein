@@ -13,7 +13,7 @@ async function renderApp(initialPlan?: Plan) {
   const repository = new InMemoryPlanRepository();
   if (initialPlan) await repository.save(initialPlan);
   const user = userEvent.setup();
-  render(<KarngeinApp repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
+  render(<KarngeinApp auth={null} repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
   await screen.findByRole("heading", { name: "แหล่งรายได้" });
   return { user, repository };
 }
@@ -149,7 +149,7 @@ describe("CP-5: บั๊กที่เจอตอนตรวจ Manual", () 
     const repository = new InMemoryPlanRepository();
     render(
       <StrictMode>
-        <KarngeinApp repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />
+        <KarngeinApp auth={null} repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />
       </StrictMode>,
     );
     await screen.findByRole("heading", { name: "แหล่งรายได้" });

@@ -529,7 +529,8 @@ npm run gate   # = npm run lint && npm run typecheck && npm run test && npm run 
 
 > `typecheck` = `next typegen && tsc --noEmit` — ต้องให้ Next.js สร้าง type อย่าง `LayoutProps` ก่อน ไม่งั้น tsc หาไม่เจอ
 
-ตั้งแต่ Phase 8 เป็นต้นไป Gate เพิ่ม `npm run test:firebase` (รันเทสต์กับ Firebase Emulator)
+ตั้งแต่ Phase 8 เป็นต้นไป มีเทสต์เพิ่ม `npm run test:firebase` (รันกับ Firebase Emulator ซึ่งต้องใช้ Java)
+→ ตาม D8 เทสต์ชุดนี้ **รันบน GitHub Actions เท่านั้น** Gate ในเครื่องยังเป็น 4 คำสั่งเดิม
 
 ### 9.3 ชุดข้อมูลทดสอบหลัก (Golden Data)
 
@@ -744,9 +745,9 @@ P0 ตั้งโปรเจกต์ → P1 Entities → P2 คำนวณ �
 **เตรียม (ทำครั้งเดียว — เจ้าของโปรเจกต์ทำเองใน Firebase Console)**
 1. สร้างโปรเจกต์ Firebase (แพ็ก Spark ฟรี)
 2. เปิด Authentication → Google
-3. สร้าง Firestore Database (region `asia-southeast1` สิงคโปร์)
+3. สร้าง Firestore Database (region `asia-southeast3` กรุงเทพฯ — ถ้าไม่มีให้เลือก ใช้ `asia-southeast1` สิงคโปร์) แบบ production mode
 4. คัดลอกค่า config ใส่ `.env.local` (ห้าม commit) และทำ `.env.example` แบบไม่มีค่าจริง
-5. ติดตั้ง `firebase-tools` + Java (Emulator ต้องใช้)
+5. `firebase-tools` ติดตั้งเป็น devDependency ของโปรเจกต์ — **ไม่ติดตั้ง Java ในเครื่อง** (D8: เป็นเครื่องบริษัท) เทสต์ที่ต้องใช้ Emulator ไปรันบน GitHub Actions แทน
 
 **งาน**
 - `firebaseApp.ts`: `initializeApp` + `initializeFirestore` แบบ `persistentLocalCache` (ทำงานออฟไลน์)
@@ -755,11 +756,14 @@ P0 ตั้งโปรเจกต์ → P1 Entities → P2 คำนวณ �
 - `firestore.rules` ตามข้อ 5.5
 - `migrateGuestPlans`: ย้ายแผนจาก localStorage → Firestore (ถ้า id ซ้ำ ใช้ `updatedAt` ที่ใหม่กว่า)
 - UI: ปุ่ม "เข้าสู่ระบบด้วย Google", เมนูบัญชี (ชื่อ/รูป/ออกจากระบบ), ป้ายสถานะ `SyncBadge` (บันทึกแล้ว / กำลังบันทึก / ออฟไลน์ — จะ sync เมื่อต่อเน็ต)
-- script `test:firebase` = `firebase emulators:exec "vitest run --project firebase"`
+- script `test:firebase` = `firebase emulators:exec "vitest run --project firebase"` — **รันบน GitHub Actions เท่านั้น** (เครื่อง GitHub มี Java) ไม่อยู่ใน `npm run gate` ในเครื่อง
+- workflow `.github/workflows/firebase-tests.yml`: รันทุกครั้งที่ push และเปิดดูผลได้ที่แท็บ Actions ของ repo
 
 **✅ CP-8: Login และ Sync ข้ามเครื่องได้**
-- 🤖 Contract test (ชุดเดิม) ผ่านกับ `FirestorePlanRepository` บน Emulator → **พิสูจน์ว่าสลับ adapter แล้ว behavior เหมือนเดิม**
-- 🤖 Rules test (`@firebase/rules-unit-testing`):
+> 🤖 ที่มีป้าย **[CI]** = ดูผลจาก GitHub Actions (ต้อง push ก่อน รอบละ ~2–3 นาที) ไม่ใช่จาก terminal ในเครื่อง
+
+- 🤖 **[CI]** Contract test (ชุดเดิม) ผ่านกับ `FirestorePlanRepository` บน Emulator → **พิสูจน์ว่าสลับ adapter แล้ว behavior เหมือนเดิม**
+- 🤖 **[CI]** Rules test (`@firebase/rules-unit-testing`):
   - ผู้ใช้ A อ่าน/เขียนแผนตัวเองได้
   - ผู้ใช้ A อ่านแผนของ B **ไม่ได้**
   - ไม่ล็อกอิน อ่าน/เขียน **ไม่ได้**
@@ -770,7 +774,7 @@ P0 ตั้งโปรเจกต์ → P1 Entities → P2 คำนวณ �
   2. แก้ข้อมูลบนคอมฯ → เปิดบนมือถือ (ล็อกอินบัญชีเดียวกัน) → เห็นข้อมูลล่าสุด
   3. มือถือเปิดโหมดเครื่องบิน → แก้ตัวเลข → ป้ายขึ้น "ออฟไลน์" → ปิดโหมดเครื่องบิน → sync ขึ้นคลาวด์ → คอมฯ เห็นค่าใหม่
   4. ออกจากระบบ → ไม่เห็นข้อมูลคลาวด์บนหน้าจอ
-- 🤖 Gate + `test:firebase` ผ่าน
+- 🤖 Gate ผ่านในเครื่อง + **[CI]** `test:firebase` เขียวบน GitHub Actions
 
 ---
 
@@ -889,12 +893,14 @@ jobs:
 | # | คำถาม | คำตอบ / ข้อสรุป | ผลต่อแผน |
 |---|---|---|---|
 | D1 | หมวด Security แยกหรือรวม? | **แยก** | เพิ่มหมวด `emergency` "เงินสำรองฉุกเฉิน" เป็นหมวดที่ 5, การ์ดคงเหลือเปลี่ยนชื่อเป็น "เงินคงเหลือ" |
-| D2 | ใช้ได้ทั้งมือถือและเว็บ ต้องมีที่เก็บข้อมูล | **เสนอ Firebase (Firestore + Google Login) + โหมด Guest + PWA** ⏳ รอยืนยัน | เพิ่มข้อ 5, Phase 8 (Firebase), Phase 9 (PWA) |
+| D2 | ใช้ได้ทั้งมือถือและเว็บ ต้องมีที่เก็บข้อมูล | **Firebase (Firestore + Google Login) + โหมด Guest + PWA** ✔ ยืนยันแล้ว (สร้างโปรเจกต์ `karngein-1eef7` แพ็ก Spark) | เพิ่มข้อ 5, Phase 8 (Firebase), Phase 9 (PWA) |
 | D3 | จะนำเข้า Sheet ไหม? | **เริ่มข้อมูลใหม่ทั้งหมดในปี 2027** | ตัดฟีเจอร์นำเข้า Sheet (ไป Backlog), มุมมองรายปีเริ่มต้นที่ 2027 |
 | D4 | ชื่อ repo | **`karngein`** (สำรอง: `chayut_karngein`) | URL `https://<username>.github.io/karngein/` |
 | D5 | ภาษาหน้าเว็บ | ภาษาไทยเป็นหลัก | – |
 | D6 | one-time ในมุมมองรายเดือน | ไม่นับ + แสดงหมายเหตุ (กฎ R3) | – |
 | D7 | สูตรแถวคงเหลือใน Sheet | `=Income[[#TOTALS],[งบประมาณ เดือน]]-SUM(C31,C35,C38)` = รายรับ − (Need+Invest+Security) | ยืนยันกฎ R7 + R9 ✔ (ตัวเลขใน Sheet ไม่ตรงน่าจะเพราะอ้างคอลัมน์ C ที่ซ่อน — ข้อ 2) |
+| D8 | ติดตั้ง Java ในเครื่องเพื่อรัน Firebase Emulator ไหม? | **ไม่ติดตั้ง** — เป็นเครื่องบริษัท (Homebrew ของเครื่องเป็นแบบ Intel บน Apple Silicon ติดตั้ง openjdk ไม่ผ่านด้วย) | เทสต์ Firestore/Rules รันบน GitHub Actions เท่านั้น, CP-8 ส่วน [CI] ดูผลจากแท็บ Actions |
+| D9 | Region ของ Firestore | **asia-southeast3 (Bangkok)** ✔ สร้างแล้ว | เปลี่ยนภายหลังไม่ได้ — ถ้าใช้ Cloud Functions ในอนาคตให้เลือก region เดียวกัน |
 
 ---
 

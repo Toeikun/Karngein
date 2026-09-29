@@ -9,10 +9,12 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gate": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "gate": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "test:firebase": "firebase emulators:exec --only firestore --project demo-karngein \"vitest run --config vitest.firebase.config.mts\""
   },
   "dependencies": {
     "d3-sankey": "^0.12.3",
+    "firebase": "^12.19.0",
     "html-to-image": "^1.11.13",
     "next": "16.3.6",
     "react": "19.2.8",
@@ -32,6 +34,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "firebase-tools": "^15.32.0",
     "jsdom": "^26.1.0",
     "tailwindcss": "^4",
     "typescript": "^5",

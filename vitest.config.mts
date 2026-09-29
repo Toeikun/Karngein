@@ -8,5 +8,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // เทสต์ที่ต้องใช้ Firebase Emulator (ต้องมี Java) แยกไปรันบน GitHub Actions — ดู vitest.firebase.config.mts
+    exclude: ["**/node_modules/**", "src/**/*.firebase.test.ts"],
   },
 });

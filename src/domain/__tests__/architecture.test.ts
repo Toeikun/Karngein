@@ -52,3 +52,26 @@ describe("Application ห้าม import Infrastructure / Presentation / framew
     expect(await lintApplicationImport('import type { PlanRepository } from "../ports/PlanRepository";')).toHaveLength(0);
   });
 });
+
+describe("Firebase อยู่ได้เฉพาะใน Infrastructure", () => {
+  const lintAt = (file: string) => lintImport('import { getFirestore } from "firebase/firestore";', file);
+
+  it.each([
+    "src/presentation/components/Example.tsx",
+    "src/app/page.tsx",
+    "src/di/container.ts",
+    "src/application/usecases/Example.ts",
+    "src/domain/entities/Example.ts",
+  ])("ห้ามใน %s", async (file) => {
+    expect(await lintAt(file)).toHaveLength(1);
+  });
+
+  it("อนุญาตใน src/infrastructure/", async () => {
+    expect(await lintAt("src/infrastructure/firebase/Example.ts")).toHaveLength(0);
+  });
+
+  it("Presentation ห้าม import Infrastructure ตรงๆ", async () => {
+    const line = 'import { LocalStoragePlanRepository } from "@/infrastructure/storage/LocalStoragePlanRepository";';
+    expect(await lintImport(line, "src/presentation/components/Example.tsx")).toHaveLength(1);
+  });
+});

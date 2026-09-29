@@ -2,11 +2,16 @@
  * di/container.ts — จุด "เสียบปลั๊ก" (Dependency Injection)
  *
  * ที่เดียวในแอปที่ตัดสินใจว่า Port แต่ละตัวใช้ Adapter ไหน
- * ตอนนี้: เก็บในเบราว์เซอร์ (โหมด Guest)
- * Phase 8: ถ้าล็อกอินแล้ว → Firestore (แก้ไฟล์นี้ไฟล์เดียว UI ไม่ต้องแก้)
+ * - ยังไม่ล็อกอิน (Guest): เก็บในเบราว์เซอร์ (localStorage)
+ * - ล็อกอินแล้ว: เก็บบน Firestore ของผู้ใช้คนนั้น
+ * - ไม่ได้ตั้งค่า Firebase: ไม่มีระบบล็อกอิน ใช้แบบ Guest อย่างเดียว
  */
 import type { ActivePlanStore } from "@/application/ports/ActivePlanStore";
+import type { AuthService } from "@/application/ports/AuthService";
 import type { PlanRepository } from "@/application/ports/PlanRepository";
+import { FirebaseAuthService } from "@/infrastructure/firebase/FirebaseAuthService";
+import { getFirebaseAuth, getFirebaseFirestore, isFirebaseConfigured } from "@/infrastructure/firebase/firebaseApp";
+import { FirestorePlanRepository } from "@/infrastructure/firebase/FirestorePlanRepository";
 import { exportPlanToJson, importPlanFromJson } from "@/infrastructure/schemas/planJson";
 import {
   InMemoryActivePlanStore,
@@ -35,6 +40,21 @@ export function getActivePlanStore(): ActivePlanStore {
       : new InMemoryActivePlanStore();
   }
   return activePlanStore;
+}
+
+let authService: AuthService | null | undefined;
+
+/** ระบบล็อกอิน — คืน null ถ้าไม่ได้ตั้งค่า Firebase หรือรันนอกเบราว์เซอร์ */
+export function getAuthService(): AuthService | null {
+  if (authService === undefined) {
+    authService = typeof window !== "undefined" && isFirebaseConfigured() ? new FirebaseAuthService(getFirebaseAuth()) : null;
+  }
+  return authService;
+}
+
+/** ที่เก็บแผนบนคลาวด์ของผู้ใช้ uid */
+export function getCloudPlanRepository(uid: string): PlanRepository {
+  return new FirestorePlanRepository(getFirebaseFirestore(), uid);
 }
 
 /** รูปแบบไฟล์สำรองข้อมูล (JSON) — UI เรียกผ่านที่นี่ ไม่ import infrastructure ตรงๆ */

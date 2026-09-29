@@ -1,0 +1,18 @@
+/**
+ * AuthService — Port สำหรับ "การเข้าสู่ระบบ"
+ * Application/UI ไม่รู้ว่าเบื้องหลังคือ Firebase — รู้แค่ว่าล็อกอิน/ออกได้ และมีผู้ใช้เป็นใคร
+ */
+export interface AuthUser {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+}
+
+export type SignInResult = { ok: true } | { ok: false; message: string };
+
+export interface AuthService {
+  /** เรียก callback ทุกครั้งที่สถานะล็อกอินเปลี่ยน (รวมครั้งแรก) — คืนฟังก์ชันยกเลิกการติดตาม */
+  onChange(callback: (user: AuthUser | null) => void): () => void;
+  signIn(): Promise<SignInResult>;
+  signOut(): Promise<void>;
+}

@@ -13,7 +13,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 | CP-5 | ใช้งานฟอร์มได้ | ✅ PASSED |
 | CP-6 | Sankey ถูกต้อง | ✅ PASSED |
 | CP-7 | จัดการหลายแผนได้ | ✅ PASSED |
-| CP-8 | Login และ Sync ข้ามเครื่องได้ | 🔒 |
+| CP-8 | Login และ Sync ข้ามเครื่องได้ | ⏳ รอผล CI + ตรวจ Manual |
 | CP-9 | พร้อมใช้บนมือถือและคอมฯ | 🔒 |
 | CP-10 | ออนไลน์ | 🔒 |
 
@@ -197,3 +197,28 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - แผนที่นำเข้าได้ id ใหม่เสมอ (ไม่เขียนทับแผนที่มีอยู่) และต่อท้ายชื่อ "(นำเข้า)"
   - การยืนยันก่อนลบ/ก่อนใช้แม่แบบ ใช้ `window.confirm` (เรียบง่ายสำหรับรอบแรก)
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 8 (Firebase — ต้องให้เจ้าของโปรเจกต์ตั้งค่า Firebase Console ก่อน)**
+
+## CP-8 Login และ Sync ข้ามเครื่องได้ — ⏳ กำลังตรวจ
+- วันที่: 2026-09-29
+- การตั้งค่า: Firebase `karngein-1eef7` (Spark), Firestore `asia-southeast3` (Bangkok), Google Login เปิดแล้ว, Authorized domains: localhost + toeikun.github.io
+- ไฟล์ที่สร้าง:
+  - Application: `ports/AuthService.ts`, `usecases/migrateGuestPlans.ts`
+  - Infrastructure: `firebase/firebaseApp.ts`, `firebase/FirestorePlanRepository.ts`, `firebase/FirebaseAuthService.ts`
+  - Presentation: `hooks/useAuth.ts`, `hooks/useOnlineStatus.ts`, `hooks/useIsClient.ts`, `components/layout/AccountMenu.tsx`, `components/PlanWorkspace.tsx`, `components/KarngeinApp.tsx` (เลือกที่เก็บตามสถานะล็อกอิน)
+  - `firestore.rules`, `firebase.json`, `vitest.firebase.config.mts`, `.github/workflows/ci.yml`, `.env.example`
+- Automated (ในเครื่อง): ✅ `npm run gate` ผ่าน — test 241/241 (24 ไฟล์)
+  - ย้ายแผน Guest: 2 แผน → ย้ายครบ, id ซ้ำเลือก updatedAt ใหม่กว่า, ย้ายแล้วไม่ถามซ้ำ, แผนว่างไม่ถาม
+  - RTL (AuthService ปลอม): ล็อกอิน → ถามย้าย → ย้าย/ไม่ย้าย, ออกจากระบบ → กลับข้อมูลในเครื่อง, ล็อกอินผิดพลาด → ข้อความไทย, ไม่ตั้งค่า Firebase → ไม่มีปุ่มล็อกอิน
+  - Architecture: `firebase` import ได้เฉพาะใน `src/infrastructure/`, Presentation import Infrastructure ตรงๆ ไม่ได้
+- Automated [CI] (GitHub Actions — ⏳ รอ push):
+  - Contract test 9 ข้อ กับ `FirestorePlanRepository` บน Emulator
+  - Rules: alice อ่าน/เขียนของตัวเองได้, อ่าน/เขียนของ bob ไม่ได้, ไม่ล็อกอินทำอะไรไม่ได้, path อื่นปิดหมด
+- Manual (ทำแล้วบางส่วน):
+  - ✅ มีปุ่ม "เข้าสู่ระบบด้วย Google" เมื่อมี `.env.local`
+  - ✅ กดปุ่ม → เรียก `karngein-1eef7.firebaseapp.com` (config ถูก) — Browser pane บล็อก popup ที่ไม่ได้มาจากผู้ใช้ → แสดงข้อความ "เบราว์เซอร์บล็อกหน้าต่างเข้าสู่ระบบ…" ถูกต้อง
+  - ⏳ ขั้นตอนที่ต้องล็อกอินจริง — เจ้าของโปรเจกต์ต้องทำเอง (ข้อ 1–4 ใน PLAN.md CP-8)
+- 🐞 ปัญหาที่เจอและแก้แล้ว:
+  1. ผู้ใช้ใหม่ที่ยังไม่กรอกอะไรเลย ล็อกอินแล้วถูกถาม "พบแผนในเครื่อง 1 แผน" (แผนว่างที่แอปสร้างให้อัตโนมัติ) → ไม่ย้ายแผนว่าง + เทสต์
+  2. ESLint pattern `firebase/*` ไปจับ `@/infrastructure/firebase/...` ด้วย → ใช้ regex `^firebase(/.*)?$`
+  3. Hydration failed: HTML ตอน build (ไม่มี Firebase) ต่างจากในเบราว์เซอร์ (มีปุ่มล็อกอิน) → `useIsClient` ให้ render แรกเหมือนกัน → ตรวจซ้ำแล้วไม่มี error
+- หมายเหตุ: `npm audit` พบ 7 moderate ใน `uuid` ที่ firebase-tools ใช้ (เครื่องมือ dev ไม่ได้อยู่ในเว็บจริง) — ยังไม่แก้

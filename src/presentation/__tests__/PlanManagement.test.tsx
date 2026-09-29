@@ -16,7 +16,7 @@ function setup() {
   const ctx = createTestContext();
   const user = userEvent.setup();
   const open = async () => {
-    const view = render(<KarngeinApp repository={repository} activePlanStore={activePlanStore} ctx={ctx} />);
+    const view = render(<KarngeinApp auth={null} repository={repository} activePlanStore={activePlanStore} ctx={ctx} />);
     await screen.findByRole("heading", { name: "แหล่งรายได้" });
     return view;
   };

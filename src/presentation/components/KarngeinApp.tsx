@@ -1,56 +1,89 @@
 "use client";
 
 /**
- * KarngeinApp — ประกอบทุกส่วนของหน้าหลักเข้าด้วยกัน
- * คำนวณตัวเลขด้วย summarize() จาก Domain — component ไม่มีสูตรเอง
+ * KarngeinApp — เลือกว่าจะทำงานกับข้อมูลที่ไหน ตามสถานะการเข้าสู่ระบบ
+ *
+ *   ยังไม่ล็อกอิน → PlanWorkspace + ที่เก็บในเครื่อง (Guest)
+ *   ล็อกอินแล้ว   → (ถามย้ายแผนในเครื่องขึ้นคลาวด์) → PlanWorkspace + Firestore ของผู้ใช้
+ *
+ * ใช้ `key` บังคับให้ PlanWorkspace สร้างใหม่เมื่อสลับผู้ใช้ → state เก่าไม่ปนกับของบัญชีใหม่
  */
-import { useState } from "react";
-import type { Period } from "@/domain/entities/Period";
-import { summarize } from "@/domain/services/summarize";
-import { usePlan, type UsePlanOptions } from "../hooks/usePlan";
-import { ExpenseList } from "./expense/ExpenseList";
-import { FlowSection } from "./flow/FlowSection";
-import { IncomeList } from "./income/IncomeList";
+import { useEffect, useState } from "react";
+import type { AuthService } from "@/application/ports/AuthService";
+import type { PlanRepository } from "@/application/ports/PlanRepository";
+import { findGuestPlansToMigrate, migrateGuestPlans } from "@/application/usecases/migrateGuestPlans";
+import { getAuthService, getCloudPlanRepository, getPlanRepository } from "@/di/container";
+import { useAuth } from "../hooks/useAuth";
+import { useIsClient } from "../hooks/useIsClient";
+import type { UsePlanOptions } from "../hooks/usePlan";
+import { AccountMenu } from "./layout/AccountMenu";
 import { Header } from "./layout/Header";
-import { PeriodSwitcher } from "./period/PeriodSwitcher";
-import { PlanBar } from "./plan/PlanBar";
-import { PresetBar } from "./preset/PresetBar";
-import { SummaryCards } from "./summary/SummaryCards";
+import { PlanWorkspace } from "./PlanWorkspace";
 
-export function KarngeinApp(options: UsePlanOptions = {}) {
-  const { plan, plans, status, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan } =
-    usePlan(options);
-  const [period, setPeriod] = useState<Period>({ kind: "monthly" });
-  const summary = plan ? summarize(plan, period) : null;
+export interface KarngeinAppProps extends UsePlanOptions {
+  /** ระบบล็อกอิน — ไม่ส่ง = ใช้จาก di, null = ปิดการล็อกอิน */
+  auth?: AuthService | null;
+  cloudRepository?: (uid: string) => PlanRepository;
+}
 
-  return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:py-8">
-      <Header status={status} />
+export function KarngeinApp({ auth: authProp, cloudRepository = getCloudPlanRepository, repository, ...options }: KarngeinAppProps) {
+  const isClient = useIsClient();
+  const [authService] = useState(() => (authProp === undefined ? getAuthService() : authProp));
+  const [guestRepository] = useState(() => repository ?? getPlanRepository());
+  const auth = useAuth(authService);
+  const uid = auth.status === "signedIn" ? auth.user.uid : null;
+  const [cloud, setCloud] = useState<{ uid: string; repository: PlanRepository } | null>(null);
 
-      {!plan || !summary ? (
-        <p className="py-20 text-center text-slate-500">กำลังโหลดแผน…</p>
-      ) : (
-        <>
-          <PlanBar
-            plan={plan}
-            plans={plans}
-            run={run}
-            onSwitch={switchPlan}
-            onCreate={() => createNewPlan()}
-            onDelete={deleteCurrentPlan}
-            onImport={importPlanFile}
-            onExport={exportCurrentPlan}
-          />
-          <SummaryCards summary={summary} />
-          <PeriodSwitcher period={period} onChange={setPeriod} />
-          <PresetBar plan={plan} run={run} />
-          <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
-            <IncomeList incomes={plan.incomes} run={run} />
-            <ExpenseList expenses={plan.expenses} period={period} run={run} />
-          </div>
-          <FlowSection plan={plan} period={period} summary={summary} />
-        </>
-      )}
-    </div>
+  // ล็อกอินแล้ว → ถามย้ายแผนในเครื่อง (ถ้ามี) → เปิดข้อมูลบนคลาวด์
+  useEffect(() => {
+    if (!uid) return;
+    let cancelled = false;
+    (async () => {
+      const cloudRepo = cloudRepository(uid);
+      try {
+        const toMigrate = await findGuestPlansToMigrate(guestRepository, cloudRepo);
+        if (
+          !cancelled &&
+          toMigrate.length > 0 &&
+          window.confirm(`พบแผนในเครื่องนี้ ${toMigrate.length} แผน ต้องการย้ายขึ้นบัญชี Google เพื่อใช้ได้ทุกเครื่องไหม?\n(ข้อมูลในเครื่องยังอยู่ ไม่ถูกลบ)`)
+        ) {
+          await migrateGuestPlans(toMigrate, cloudRepo);
+        }
+      } catch (error) {
+        console.error("[Karngein] ย้ายแผนขึ้นคลาวด์ไม่สำเร็จ", error);
+      }
+      if (!cancelled) setCloud({ uid, repository: cloudRepo });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, cloudRepository, guestRepository]);
+
+  const account = (
+    <AccountMenu status={auth.status} user={auth.user} error={auth.error} onSignIn={auth.signIn} onSignOut={auth.signOut} />
   );
+
+  let content;
+  if (!isClient) {
+    // ตอน build และตอน hydrate ครั้งแรก: หน้าตาเหมือนกันทุกครั้ง (ไม่ขึ้นกับ localStorage / สถานะล็อกอิน)
+    content = (
+      <>
+        <Header status="loading" />
+        <p className="py-20 text-center text-slate-500">กำลังโหลด…</p>
+      </>
+    );
+  } else if (auth.status === "loading" || (uid && cloud?.uid !== uid)) {
+    content = (
+      <>
+        <Header status="loading" account={account} />
+        <p className="py-20 text-center text-slate-500">{uid ? "กำลังเตรียมข้อมูลบนคลาวด์…" : "กำลังโหลด…"}</p>
+      </>
+    );
+  } else if (uid && cloud) {
+    content = <PlanWorkspace key={uid} mode="cloud" repository={cloud.repository} account={account} {...options} />;
+  } else {
+    content = <PlanWorkspace key="guest" mode="guest" repository={guestRepository} account={account} {...options} />;
+  }
+
+  return <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:py-8">{content}</div>;
 }

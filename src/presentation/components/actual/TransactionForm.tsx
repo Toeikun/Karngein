@@ -49,6 +49,9 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
 
   const group = plan.expenses.find((g) => g.id === form.groupId);
   const goals = plan.goals ?? [];
+  const goal = goals.find((g) => g.id === form.goalId);
+  // หมวดของรายจ่าย: ตามกลุ่มที่ผูก > ตามเป้าหมายที่เลือก > ที่ผู้ใช้เลือกเอง
+  const categoryFromLink = group?.category ?? goal?.category;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -66,7 +69,7 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
             date: form.date,
             amount: amount.value,
             note,
-            category: group?.category ?? form.category,
+            category: categoryFromLink ?? form.category,
             planGroupId: form.groupId || undefined,
             goalId: form.goalId || undefined,
           };
@@ -138,9 +141,9 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
               </option>
             ))}
           </select>
-          {group ? (
+          {categoryFromLink ? (
             <p className="flex h-11 items-center text-sm text-slate-500">
-              หมวด: {CATEGORIES.find((c) => c.id === group.category)?.label}
+              หมวด: {CATEGORIES.find((c) => c.id === categoryFromLink)?.label}
             </p>
           ) : (
             <select aria-label="หมวดรายการ" value={form.category} onChange={(e) => set("category", e.target.value as CategoryId)} className={field}>

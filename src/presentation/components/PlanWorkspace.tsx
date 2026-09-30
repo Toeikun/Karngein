@@ -10,6 +10,7 @@ import { summarize } from "@/domain/services/summarize";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { usePlan, type UsePlanOptions } from "../hooks/usePlan";
 import { ActualView } from "./actual/ActualView";
+import { GoalsView } from "./goals/GoalsView";
 import { ExpenseList } from "./expense/ExpenseList";
 import { PlanFlowSection } from "./flow/PlanFlowSection";
 import { IncomeList } from "./income/IncomeList";
@@ -30,7 +31,7 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
     usePlan(options);
   const online = useOnlineStatus();
   const [period, setPeriod] = useState<Period>({ kind: "monthly" });
-  const [tab, setTab] = useState<"plan" | "actual">("plan");
+  const [tab, setTab] = useState<WorkspaceTab>("plan");
   const summary = plan ? summarize(plan, period) : null;
 
   return (
@@ -74,9 +75,11 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
               </div>
               <PlanFlowSection plan={plan} period={period} summary={summary} />
             </>
-          ) : (
+          ) : tab === "actual" ? (
             // key = plan.id → สลับแผนแล้วโหลดรายการของแผนใหม่ทั้งหมด
             <ActualView key={plan.id} plan={plan} run={run} repository={transactionRepository} ctx={ctx} />
+          ) : (
+            <GoalsView key={plan.id} plan={plan} run={run} repository={transactionRepository} ctx={ctx} />
           )}
         </>
       )}
@@ -84,10 +87,13 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
   );
 }
 
-function WorkspaceTabs({ tab, onChange }: { tab: "plan" | "actual"; onChange: (tab: "plan" | "actual") => void }) {
-  const tabs = [
-    { id: "plan" as const, label: "วางแผน" },
-    { id: "actual" as const, label: "บันทึกจริง" },
+type WorkspaceTab = "plan" | "actual" | "goals";
+
+function WorkspaceTabs({ tab, onChange }: { tab: WorkspaceTab; onChange: (tab: WorkspaceTab) => void }) {
+  const tabs: { id: WorkspaceTab; label: string }[] = [
+    { id: "plan", label: "วางแผน" },
+    { id: "actual", label: "บันทึกจริง" },
+    { id: "goals", label: "เป้าหมาย" },
   ];
   return (
     <div role="tablist" aria-label="มุมมองของแผน" className="flex rounded-2xl bg-slate-200/70 p-1">

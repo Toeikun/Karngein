@@ -5,12 +5,13 @@
  * (โหมด Guest อยู่ใน localStorage, โหมดล็อกอินอยู่ใน offline cache ของ Firestore)
  *
  * กลยุทธ์:
- * - หน้าเว็บ (navigate): เน็ตก่อน → ได้ของใหม่เสมอเมื่อออนไลน์ / ออฟไลน์ใช้ของที่เก็บไว้
+ * - หน้าเว็บ (navigate): เน็ตก่อน → ได้ของใหม่เสมอเมื่อออนไลน์ / ออฟไลน์หรือเน็ตช้าเกิน 4 วินาที ใช้ของที่เก็บไว้
  * - /_next/static/*: ใช้ของที่เก็บไว้ก่อน (ชื่อไฟล์มี hash ไม่เปลี่ยนเนื้อหา)
  * - ไฟล์อื่นในเว็บเดียวกัน (ไอคอน, manifest): ใช้ของเก่าทันที แล้วอัปเดตเบื้องหลัง
  * - คำขอไปเว็บอื่น (Firebase, Google) ไม่แตะ
  */
-const CACHE = "karngein-v1";
+const CACHE = "karngein-v2";
+const NETWORK_TIMEOUT_MS = 4000; // เน็ตช้ากว่านี้ (เช่น เพิ่งเปิดแอปใหม่) → ใช้หน้าที่เก็บไว้ก่อน
 const SCOPE = self.registration.scope; // เช่น https://toeikun.github.io/Karngein/
 const APP_SHELL = [SCOPE, `${SCOPE}manifest.webmanifest`, `${SCOPE}icons/icon-192.png`];
 
@@ -30,12 +31,19 @@ self.addEventListener("activate", (event) => {
 
 async function networkFirst(request) {
   const cache = await caches.open(CACHE);
-  try {
-    const response = await fetch(request);
+  const fromCache = async () => (await cache.match(request)) ?? (await cache.match(SCOPE));
+  const network = fetch(request).then((response) => {
     if (response.ok) cache.put(request, response.clone());
     return response;
+  });
+  try {
+    // รอเน็ตไม่เกิน NETWORK_TIMEOUT_MS ถ้ามีหน้าที่เก็บไว้ (ไม่มี → รอเน็ตต่อ)
+    const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS, "timeout"));
+    const first = await Promise.race([network, timeout]);
+    if (first !== "timeout") return first;
+    return (await fromCache()) ?? (await network);
   } catch {
-    return (await cache.match(request)) ?? (await cache.match(SCOPE)) ?? Response.error();
+    return (await fromCache()) ?? Response.error();
   }
 }
 

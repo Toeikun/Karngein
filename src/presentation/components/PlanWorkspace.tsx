@@ -17,6 +17,7 @@ import { PeriodSwitcher } from "./period/PeriodSwitcher";
 import { PlanBar } from "./plan/PlanBar";
 import { PresetBar } from "./preset/PresetBar";
 import { SummaryCards } from "./summary/SummaryCards";
+import { LoadingState } from "./ui/LoadingState";
 
 interface PlanWorkspaceProps extends UsePlanOptions {
   mode: "guest" | "cloud";
@@ -41,7 +42,7 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
           {mode === "cloud" && <p className="mt-3 text-xs text-red-700">ออกจากระบบ (มุมขวาบน) เพื่อกลับไปใช้ข้อมูลในเครื่องได้</p>}
         </div>
       ) : !plan || !summary ? (
-        <p className="py-20 text-center text-slate-500">กำลังโหลดแผน…</p>
+        <LoadingState message="กำลังโหลดแผน…" stage={mode === "cloud" ? "โหลดแผนจากคลาวด์" : "โหลดแผนในเครื่อง"} />
       ) : (
         <>
           <PlanBar

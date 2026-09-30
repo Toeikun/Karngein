@@ -17,6 +17,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useIsClient } from "../hooks/useIsClient";
 import type { UsePlanOptions } from "../hooks/usePlan";
 import { AccountMenu } from "./layout/AccountMenu";
+import { LoadingState } from "./ui/LoadingState";
 import { Header } from "./layout/Header";
 import { PlanWorkspace } from "./PlanWorkspace";
 
@@ -69,14 +70,18 @@ export function KarngeinApp({ auth: authProp, cloudRepository = getCloudPlanRepo
     content = (
       <>
         <Header status="loading" />
-        <p className="py-20 text-center text-slate-500">กำลังโหลด…</p>
+        <LoadingState message="กำลังโหลด…" stage="เริ่มแอป" />
       </>
     );
   } else if (auth.status === "loading" || (uid && cloud?.uid !== uid)) {
     content = (
       <>
         <Header status="loading" account={account} />
-        <p className="py-20 text-center text-slate-500">{uid ? "กำลังเตรียมข้อมูลบนคลาวด์…" : "กำลังโหลด…"}</p>
+        {uid ? (
+          <LoadingState message="กำลังเตรียมข้อมูลบนคลาวด์…" stage="เตรียมข้อมูลบนคลาวด์" />
+        ) : (
+          <LoadingState message="กำลังโหลด…" stage="ตรวจสอบบัญชี" />
+        )}
       </>
     );
   } else if (uid && cloud) {

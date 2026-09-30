@@ -13,7 +13,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 | CP-5 | ใช้งานฟอร์มได้ | ✅ PASSED |
 | CP-6 | Sankey ถูกต้อง | ✅ PASSED |
 | CP-7 | จัดการหลายแผนได้ | ✅ PASSED |
-| CP-8 | Login และ Sync ข้ามเครื่องได้ | ⏳ รอผล CI + ตรวจ Manual |
+| CP-8 | Login และ Sync ข้ามเครื่องได้ | ✅ PASSED (ข้อ 2 มือถือ → ตรวจใน CP-10) |
 | CP-9 | พร้อมใช้บนมือถือและคอมฯ | 🔒 |
 | CP-10 | ออนไลน์ | 🔒 |
 
@@ -198,7 +198,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - การยืนยันก่อนลบ/ก่อนใช้แม่แบบ ใช้ `window.confirm` (เรียบง่ายสำหรับรอบแรก)
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 8 (Firebase — ต้องให้เจ้าของโปรเจกต์ตั้งค่า Firebase Console ก่อน)**
 
-## CP-8 Login และ Sync ข้ามเครื่องได้ — ⏳ กำลังตรวจ
+## CP-8 Login และ Sync ข้ามเครื่องได้
 - วันที่: 2026-09-29
 - การตั้งค่า: Firebase `karngein-1eef7` (Spark), Firestore `asia-southeast3` (Bangkok), Google Login เปิดแล้ว, Authorized domains: localhost + toeikun.github.io
 - ไฟล์ที่สร้าง:
@@ -235,3 +235,10 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 - แก้: `nodeSort(null)` + `linkSort(null)` ใช้ลำดับจาก buildFlowGraph (หมวด → กลุ่ม → รายการ) ตรงกับลำดับสีในแถบหมวด
 - เทสต์ใหม่: ทุกคอลัมน์เรียงจากบนลงล่างตามลำดับของ buildFlowGraph (ล้มก่อนแก้ ผ่านหลังแก้) — gate 243/243
 - Manual: แม่แบบ "มนุษย์เงินเดือน" → คอลัมน์ขวาเรียง ฟ้า → ส้ม → เขียว → ม่วง → แดง → เทา ไม่ปนกัน ✅
+
+### CP-8 ผลตรวจ Manual (เจ้าของโปรเจกต์ตรวจ — 2026-09-30)
+- ✅ ข้อ 1 Guest → ล็อกอิน Google → ย้ายแผน → เห็นแผนใน Firestore (`users/<uid>/plans/<id>`)
+- ✅ ข้อ 3 ปิด Wi-Fi → แก้ตัวเลข → ป้าย "ออฟไลน์ · บันทึกในเครื่องแล้ว" → เปิด Wi-Fi → รีเฟรช → ตัวเลขใหม่ยังอยู่
+- ✅ ข้อ 4 ออกจากระบบ → กลับไปข้อมูลในเครื่อง ไม่เห็นข้อมูลคลาวด์
+- ⏭ ข้อ 2 (มือถือเห็นข้อมูลเดียวกับคอมฯ) → ย้ายไปตรวจใน CP-10 เพราะต้อง deploy ก่อน (ตกลงกับเจ้าของโปรเจกต์แล้ว)
+- สถานะ: **PASSED → อนุญาตเริ่ม Phase 9**

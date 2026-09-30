@@ -220,6 +220,9 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - ⏳ ขั้นตอนที่ต้องล็อกอินจริง — เจ้าของโปรเจกต์ต้องทำเอง (ข้อ 1–4 ใน PLAN.md CP-8)
 - 🐞 ปัญหาที่เจอและแก้แล้ว:
   0. push ไม่ผ่าน "Can't push refs… Try Pull" → สาเหตุจริง: token ไม่มีสิทธิ์ **Workflows** (GitHub ไม่ยอมให้ push ไฟล์ `.github/workflows/*`) → เพิ่มสิทธิ์ Workflows: Read and write ให้ token เดิม → push ผ่าน (บทเรียน: ข้อความของ IDE อาจไม่ตรงสาเหตุ ให้ดูข้อความจาก `git push` ใน terminal)
+  0.1 ล็อกอินจริงแล้วขึ้น "Missing or insufficient permissions" → กฎใน Firebase Console ยังเป็นค่าเริ่มต้นของ production mode (ปฏิเสธทุกอย่าง) → วางกฎจาก `firestore.rules` แล้ว Publish → ใช้งานได้
+      (บทเรียน: เทสต์ใน CI ใช้ไฟล์ `firestore.rules` ของโปรเจกต์ ไม่ใช่กฎที่ใช้งานจริงใน Console — ต้องทำให้ตรงกันเสมอ, Phase 10 จะให้ deploy กฎจากไฟล์)
+      และแก้โค้ด: ถ้าคลาวด์ปฏิเสธ หน้าจอแสดง "โหลดแผนไม่สำเร็จ" + สาเหตุภาษาไทย แทนการค้าง (commit a18372b)
   1. ผู้ใช้ใหม่ที่ยังไม่กรอกอะไรเลย ล็อกอินแล้วถูกถาม "พบแผนในเครื่อง 1 แผน" (แผนว่างที่แอปสร้างให้อัตโนมัติ) → ไม่ย้ายแผนว่าง + เทสต์
   2. ESLint pattern `firebase/*` ไปจับ `@/infrastructure/firebase/...` ด้วย → ใช้ regex `^firebase(/.*)?$`
   3. Hydration failed: HTML ตอน build (ไม่มี Firebase) ต่างจากในเบราว์เซอร์ (มีปุ่มล็อกอิน) → `useIsClient` ให้ render แรกเหมือนกัน → ตรวจซ้ำแล้วไม่มี error

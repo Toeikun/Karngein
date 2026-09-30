@@ -833,59 +833,26 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 ```
 
-### 11.2 GitHub Actions (`.github/workflows/deploy.yml`)
+### 11.2 GitHub Actions (`.github/workflows/ci.yml`)
 
-```yaml
-name: Deploy to GitHub Pages
-on:
-  push:
-    branches: [main]
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
-      - uses: actions/setup-java@v4       # Firebase Emulator ต้องใช้ Java
-        with: { distribution: temurin, java-version: 21 }
-      - run: npm ci
-      - run: npm run lint && npm run typecheck && npm run test && npm run test:firebase
-  deploy:
-    needs: test                           # ← Checkpoint ใน CI: เทสต์ไม่ผ่าน = ไม่ deploy
-    runs-on: ubuntu-latest
-    environment: { name: github-pages, url: '${{ steps.deployment.outputs.page_url }}' }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
-      - run: npm ci
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
-      - run: touch out/.nojekyll            # ให้ GitHub Pages เสิร์ฟโฟลเดอร์ _next ได้
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: out }
-      - id: deployment
-        uses: actions/deploy-pages@v4
-```
+ไฟล์เดียวมี 4 job — `deploy` รอให้ 3 job แรกผ่านก่อนเสมอ (**เทสต์ไม่ผ่าน = ไม่ deploy**)
 
-> `basePath` อ่านจากชื่อ repo อัตโนมัติ → ถ้าต้องใช้ชื่อสำรอง `chayut_karngein` ก็ไม่ต้องแก้โค้ด
+| job | ทำอะไร | รันเมื่อ |
+|---|---|---|
+| `gate` | lint + typecheck + test + build | ทุก push / PR |
+| `firebase` | เทสต์ Firestore + Security Rules บน Emulator (ต้องใช้ Java) | ทุก push / PR |
+| `e2e` | Playwright มือถือ + เดสก์ท็อป, เปิดตอนออฟไลน์ | ทุก push / PR |
+| `deploy` | build ด้วย `NEXT_PUBLIC_BASE_PATH=/<ชื่อ repo>` + ค่า `FIREBASE_*` จาก Variables → GitHub Pages | push เข้า `main` เท่านั้น |
+
+> `basePath` อ่านจากชื่อ repo อัตโนมัติ (repo ชื่อ `Karngein` → เว็บอยู่ที่ `/Karngein/` — ตัวพิมพ์ใหญ่-เล็กมีผล)
 
 ### 11.3 ขั้นตอนบน GitHub
-1. สร้าง repo ชื่อ `karngein` (ถ้าชื่อซ้ำในบัญชี ใช้ `chayut_karngein`)
+1. Repo: `Toeikun/Karngein` (public — D10) → เว็บ: `https://toeikun.github.io/Karngein/`
 2. `Settings → Pages → Source: GitHub Actions`
 3. `Settings → Secrets and variables → Actions → Variables` ใส่ค่า `FIREBASE_*` 4 ตัว
-4. Firebase Console → Authentication → Settings → Authorized domains → เพิ่ม `<username>.github.io`
-5. Deploy Security Rules: `firebase deploy --only firestore:rules`
+4. Firebase Console → Authentication → Settings → Authorized domains → เพิ่ม `toeikun.github.io` (ทำแล้ว)
+5. Security Rules: ตอนนี้วางกฎจากไฟล์ `firestore.rules` ใน Console → Firestore → Rules → Publish ด้วยมือ
+   **ทุกครั้งที่แก้ `firestore.rules` ต้องไป Publish ใน Console ด้วย** (บทเรียนจาก CP-8: CI เทสต์กฎจากไฟล์ ไม่ใช่กฎที่ใช้งานจริง)
 6. `git push origin main` → รอ Actions เขียว → เปิดลิงก์
 
 ---
@@ -902,6 +869,7 @@ jobs:
 | D6 | one-time ในมุมมองรายเดือน | ไม่นับ + แสดงหมายเหตุ (กฎ R3) | – |
 | D7 | สูตรแถวคงเหลือใน Sheet | `=Income[[#TOTALS],[งบประมาณ เดือน]]-SUM(C31,C35,C38)` = รายรับ − (Need+Invest+Security) | ยืนยันกฎ R7 + R9 ✔ (ตัวเลขใน Sheet ไม่ตรงน่าจะเพราะอ้างคอลัมน์ C ที่ซ่อน — ข้อ 2) |
 | D8 | ติดตั้ง Java ในเครื่องเพื่อรัน Firebase Emulator ไหม? | **ไม่ติดตั้ง** — เป็นเครื่องบริษัท (Homebrew ของเครื่องเป็นแบบ Intel บน Apple Silicon ติดตั้ง openjdk ไม่ผ่านด้วย) | เทสต์ Firestore/Rules รันบน GitHub Actions เท่านั้น, CP-8 ส่วน [CI] ดูผลจากแท็บ Actions |
+| D10 | GitHub Pages ใช้กับ repo private (บัญชีฟรี) ไม่ได้ | **เปลี่ยน repo เป็น public** — ก่อนเปิด: ล้างข้อมูลการเงินจาก Sheet ออกจาก PLAN.md ข้อ 2 ทั้งประวัติ (force push), ลบ CI run ที่ชี้ commit เก่า, คงอีเมลส่วนตัวใน commit ไว้ตามที่เจ้าของเลือก | commit เก่ายังเปิดดูได้ถ้ารู้รหัส commit เต็ม (GitHub ยังไม่ลบ) — เจ้าของรับความเสี่ยงนี้ (ทางแก้ถ้าเปลี่ยนใจ: ขอ GitHub Support ลบ หรือลบ repo แล้วสร้างใหม่) |
 | D9 | Region ของ Firestore | **asia-southeast3 (Bangkok)** ✔ สร้างแล้ว | เปลี่ยนภายหลังไม่ได้ — ถ้าใช้ Cloud Functions ในอนาคตให้เลือก region เดียวกัน |
 
 ---

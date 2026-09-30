@@ -3,6 +3,7 @@
 #  - firebase: เทสต์ Firestore + Security Rules บน Firebase Emulator (ต้องใช้ Java — เครื่องของ GitHub มีให้)
 #              เครื่อง dev ไม่ได้ติดตั้ง Java จึงดูผลชุดนี้ที่นี่ (PLAN.md D8)
 #  - e2e:      Playwright เปิดเว็บจริงทดสอบทั้ง flow (มือถือ + เดสก์ท็อป) และการเปิดตอนออฟไลน์
+#  - deploy:   ขึ้น GitHub Pages เมื่อ push เข้า main และ 3 job ข้างบนผ่านครบ
 name: CI
 on:
   push:
@@ -43,3 +44,40 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with: { name: playwright-traces, path: test-results, retention-days: 7 }
+
+  deploy:
+    # Deploy ขึ้น GitHub Pages — เฉพาะเมื่อ push เข้า main และ "ทุก job ตรวจผ่านแล้ว" (Checkpoint ใน CI: เทสต์ไม่ผ่าน = ไม่ deploy)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [gate, firebase, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - name: ตรวจว่าตั้งค่า Firebase variables แล้ว
+        if: vars.FIREBASE_API_KEY == ''
+        run: echo "::warning::ยังไม่ได้ตั้ง FIREBASE_* ใน Settings → Secrets and variables → Actions → Variables — เว็บจะใช้ได้แบบ Guest อย่างเดียว"
+      - run: npm run build
+        env:
+          # GitHub Pages เสิร์ฟเว็บใต้ /<ชื่อ repo>/ (เช่น /Karngein)
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+      - run: touch out/.nojekyll # ให้ GitHub Pages เสิร์ฟโฟลเดอร์ _next ได้ (Jekyll ข้ามโฟลเดอร์ที่ขึ้นต้นด้วย _)
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: out }
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -8,7 +8,9 @@
  */
 import type { AuthService, AuthUser, SignInResult } from "@/application/ports/AuthService";
 import type { PlanRepository } from "@/application/ports/PlanRepository";
+import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import type { Plan } from "@/domain/entities/Plan";
+import type { Transaction } from "@/domain/entities/Transaction";
 
 /** จำไว้ในเครื่องว่าครั้งล่าสุดล็อกอินอยู่ไหม (ไม่ใช่ข้อมูลลับ — แค่ "1" หรือไม่มี) */
 const SIGNED_IN_HINT_KEY = "karngein:signedInHint";
@@ -31,9 +33,12 @@ function writeHint(signedIn: boolean) {
 }
 
 const loadFirebase = () =>
-  Promise.all([import("./firebaseApp"), import("./FirebaseAuthService"), import("./FirestorePlanRepository")]).then(
-    ([app, auth, firestore]) => ({ ...app, ...auth, ...firestore }),
-  );
+  Promise.all([
+    import("./firebaseApp"),
+    import("./FirebaseAuthService"),
+    import("./FirestorePlanRepository"),
+    import("./FirestoreTransactionRepository"),
+  ]).then(([app, auth, plans, transactions]) => ({ ...app, ...auth, ...plans, ...transactions }));
 
 export class LazyFirebaseAuthService implements AuthService {
   private loading: Promise<AuthService> | null = null;
@@ -102,5 +107,31 @@ export class LazyFirestorePlanRepository implements PlanRepository {
   }
   async delete(id: string): Promise<void> {
     return (await this.load()).delete(id);
+  }
+}
+
+export class LazyFirestoreTransactionRepository implements TransactionRepository {
+  private repository: Promise<TransactionRepository> | null = null;
+
+  constructor(private readonly uid: string) {}
+
+  private load(): Promise<TransactionRepository> {
+    this.repository ??= loadFirebase().then(
+      (firebase) => new firebase.FirestoreTransactionRepository(firebase.getFirebaseFirestore(), this.uid),
+    );
+    return this.repository;
+  }
+
+  async list(planId: string): Promise<Transaction[]> {
+    return (await this.load()).list(planId);
+  }
+  async save(planId: string, transaction: Transaction): Promise<void> {
+    return (await this.load()).save(planId, transaction);
+  }
+  async delete(planId: string, transactionId: string): Promise<void> {
+    return (await this.load()).delete(planId, transactionId);
+  }
+  async deleteAll(planId: string): Promise<void> {
+    return (await this.load()).deleteAll(planId);
   }
 }

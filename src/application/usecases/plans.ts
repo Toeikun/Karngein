@@ -6,6 +6,7 @@
 import { createEmptyPlan, type Plan } from "@/domain/entities/Plan";
 import type { UseCaseContext } from "../context";
 import type { PlanRepository } from "../ports/PlanRepository";
+import type { TransactionRepository } from "../ports/TransactionRepository";
 import { failure, success, touch, type PlanResult } from "../result";
 
 export function createPlan(ctx: UseCaseContext, name?: string): Plan {
@@ -26,8 +27,10 @@ export async function listPlans(repository: PlanRepository): Promise<Plan[]> {
   return [...plans].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export function deletePlan(repository: PlanRepository, id: string): Promise<void> {
-  return repository.delete(id);
+/** ลบแผน — ถ้าส่ง transactions มาด้วย จะลบรายการจริงของแผนนั้นทิ้งด้วย (ไม่ให้เหลือข้อมูลค้าง) */
+export async function deletePlan(repository: PlanRepository, id: string, transactions?: TransactionRepository): Promise<void> {
+  await transactions?.deleteAll(id);
+  await repository.delete(id);
 }
 
 export function renamePlan(plan: Plan, name: string, ctx: UseCaseContext): PlanResult {

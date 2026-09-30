@@ -48,3 +48,26 @@ describe("firestore.rules", () => {
     await expectDenied(setDoc(doc(firestoreAs("alice"), "other/doc"), { note: "x" }));
   });
 });
+
+describe("firestore.rules — รายการจริง (Phase 11)", () => {
+  const tx = { id: "t1", date: "2026-10-01", type: "expense", amount: 250, category: "essential" };
+
+  it("alice อ่าน/เขียนรายการจริงของตัวเองได้", async () => {
+    const db = firestoreAs("alice");
+    await setDoc(doc(db, "users/alice/plans/p1/transactions/t1"), tx);
+    expect((await getDoc(doc(db, "users/alice/plans/p1/transactions/t1"))).data()).toEqual(tx);
+  });
+
+  it("alice อ่าน/เขียนรายการจริงของ bob ไม่ได้", async () => {
+    await setDoc(doc(firestoreAs("bob"), "users/bob/plans/p1/transactions/t1"), tx);
+    const db = firestoreAs("alice");
+    await expectDenied(getDocs(collection(db, "users/bob/plans/p1/transactions")));
+    await expectDenied(setDoc(doc(db, "users/bob/plans/p1/transactions/t2"), tx));
+  });
+
+  it("ไม่ล็อกอิน อ่าน/เขียนรายการจริงไม่ได้", async () => {
+    const db = firestoreAs();
+    await expectDenied(getDocs(collection(db, "users/bob/plans/p1/transactions")));
+    await expectDenied(setDoc(doc(db, "users/bob/plans/p1/transactions/t3"), tx));
+  });
+});

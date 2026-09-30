@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { systemContext, type UseCaseContext } from "@/application/context";
 import type { ActivePlanStore } from "@/application/ports/ActivePlanStore";
 import type { PlanRepository } from "@/application/ports/PlanRepository";
+import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import type { PlanResult } from "@/application/result";
 import {
   copyImportedPlan,
@@ -27,7 +28,7 @@ import {
 } from "@/application/usecases/plans";
 import type { Plan } from "@/domain/entities/Plan";
 import type { ValidationError } from "@/domain/entities/validation";
-import { getActivePlanStore, getPlanRepository, planFileFormat } from "@/di/container";
+import { getActivePlanStore, getPlanRepository, getTransactionRepository, planFileFormat } from "@/di/container";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "error";
 // ชื่อพารามิเตอร์ห้ามขึ้นต้นด้วย "use" ไม่งั้น ESLint จะเข้าใจผิดว่าเป็น React Hook
@@ -41,12 +42,14 @@ export const AUTOSAVE_DELAY_MS = 1000;
 
 export interface UsePlanOptions {
   repository?: PlanRepository;
+  transactionRepository?: TransactionRepository;
   activePlanStore?: ActivePlanStore;
   ctx?: UseCaseContext;
 }
 
-export function usePlan({ repository, activePlanStore, ctx = systemContext }: UsePlanOptions = {}) {
+export function usePlan({ repository, transactionRepository, activePlanStore, ctx = systemContext }: UsePlanOptions = {}) {
   const [repo] = useState(() => repository ?? getPlanRepository());
+  const [txRepo] = useState(() => transactionRepository ?? getTransactionRepository());
   const [active] = useState(() => activePlanStore ?? getActivePlanStore());
   const [plan, setPlan] = useState<Plan | null>(null);
   const [plans, setPlans] = useState<PlanListItem[]>([]);
@@ -178,7 +181,7 @@ export function usePlan({ repository, activePlanStore, ctx = systemContext }: Us
     const current = planRef.current;
     if (!current) return;
     dirtyRef.current = false; // ไม่ต้องบันทึกแผนที่กำลังจะลบ
-    await deletePlan(repo, current.id);
+    await deletePlan(repo, current.id, txRepo); // ลบรายการจริงของแผนด้วย
     let next = (await listPlans(repo))[0];
     if (!next) {
       next = createPlan(ctx);
@@ -186,7 +189,7 @@ export function usePlan({ repository, activePlanStore, ctx = systemContext }: Us
     }
     show(next);
     await refreshList();
-  }, [repo, ctx, show, refreshList]);
+  }, [repo, txRepo, ctx, show, refreshList]);
 
   /** นำเข้าไฟล์ JSON → คืนข้อความ error หรือ null ถ้าสำเร็จ */
   const importPlanFile = useCallback(
@@ -196,17 +199,21 @@ export function usePlan({ repository, activePlanStore, ctx = systemContext }: Us
       await persist();
       const copy = copyImportedPlan(parsed.plan, ctx);
       await savePlan(repo, copy);
+      // รายการจริงผูกกับแผน (D11) → เก็บไว้ใต้ id ใหม่ของแผนที่นำเข้า
+      for (const transaction of parsed.transactions) await txRepo.save(copy.id, transaction);
       show(copy);
       await refreshList();
       return null;
     },
-    [repo, ctx, persist, show, refreshList],
+    [repo, txRepo, ctx, persist, show, refreshList],
   );
 
-  const exportCurrentPlan = useCallback((): string | null => {
+  /** ไฟล์สำรองของแผนที่เปิดอยู่ (รวมรายการจริง) */
+  const exportCurrentPlan = useCallback(async (): Promise<string | null> => {
     const current = planRef.current;
-    return current ? planFileFormat.serialize(current, ctx.now()) : null;
-  }, [ctx]);
+    if (!current) return null;
+    return planFileFormat.serialize(current, await txRepo.list(current.id), ctx.now());
+  }, [txRepo, ctx]);
 
   return { plan, plans, status, loadError, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan };
 }

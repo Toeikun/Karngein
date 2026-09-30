@@ -9,18 +9,41 @@
 import type { ActivePlanStore } from "@/application/ports/ActivePlanStore";
 import type { AuthService } from "@/application/ports/AuthService";
 import type { PlanRepository } from "@/application/ports/PlanRepository";
+import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import { isFirebaseConfigured } from "@/infrastructure/firebase/firebaseConfig";
-import { LazyFirebaseAuthService, LazyFirestorePlanRepository } from "@/infrastructure/firebase/lazyFirebase";
+import {
+  LazyFirebaseAuthService,
+  LazyFirestorePlanRepository,
+  LazyFirestoreTransactionRepository,
+} from "@/infrastructure/firebase/lazyFirebase";
 import { exportPlanToJson, importPlanFromJson } from "@/infrastructure/schemas/planJson";
 import {
   InMemoryActivePlanStore,
   LocalStorageActivePlanStore,
 } from "@/infrastructure/storage/LocalStorageActivePlanStore";
 import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRepository";
+import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemoryTransactionRepository";
 import { LocalStoragePlanRepository } from "@/infrastructure/storage/LocalStoragePlanRepository";
+import { LocalStorageTransactionRepository } from "@/infrastructure/storage/LocalStorageTransactionRepository";
 
 let planRepository: PlanRepository | null = null;
 let activePlanStore: ActivePlanStore | null = null;
+let transactionRepository: TransactionRepository | null = null;
+
+/** ที่เก็บรายการจริงในเครื่อง (โหมด Guest) */
+export function getTransactionRepository(): TransactionRepository {
+  if (!transactionRepository) {
+    transactionRepository = hasLocalStorage()
+      ? new LocalStorageTransactionRepository(window.localStorage)
+      : new InMemoryTransactionRepository();
+  }
+  return transactionRepository;
+}
+
+/** ที่เก็บรายการจริงบนคลาวด์ของผู้ใช้ uid */
+export function getCloudTransactionRepository(uid: string): TransactionRepository {
+  return new LazyFirestoreTransactionRepository(uid);
+}
 
 export function getPlanRepository(): PlanRepository {
   if (!planRepository) {

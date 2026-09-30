@@ -341,3 +341,20 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 - 🧪 Mutation check: เปลี่ยน `>=` เป็น `>` ในกฎ R13 → ล้ม 11 ข้อ / ตัด R14 (ไม่ใช้วันสุดท้ายของเดือน) → ล้ม 4 ข้อ / คืนค่า → ผ่านครบ
 - Manual: n/a (Phase นี้ไม่มี UI)
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 11.2**
+
+## CP-11.2 เก็บข้อมูล + ไฟล์สำรอง v2 — ⏳ รอผล CI + Publish Rules
+- วันที่: 2026-09-30
+- ไฟล์ที่สร้าง/แก้:
+  - Application: `ports/TransactionRepository.ts`, `usecases/transactions.ts`, `usecases/plans.ts` (ลบแผน → ลบรายการจริง), `usecases/migrateGuestPlans.ts` (ย้ายรายการจริงด้วย)
+  - Infrastructure: `storage/InMemoryTransactionRepository.ts`, `storage/LocalStorageTransactionRepository.ts`, `firebase/FirestoreTransactionRepository.ts`, `firebase/firestoreHelpers.ts` (แยกตัวช่วยที่ใช้ร่วมกัน), `firebase/lazyFirebase.ts`, `schemas/planSchema.ts` (+ goals, payCycleStartDay, transactionSchema), `schemas/planJson.ts` (ไฟล์สำรอง v2)
+  - Presentation: `usePlan` (ลบ/ส่งออก/นำเข้ารวมรายการจริง), `KarngeinApp` (ที่เก็บรายการจริงในเครื่อง/คลาวด์ + ย้ายขึ้นคลาวด์), `PlanBar` (ส่งออกแบบ async)
+  - `firestore.rules`: เพิ่ม `users/{uid}/plans/{planId}/transactions/{id}` (เจ้าของเท่านั้น)
+- Automated (ในเครื่อง): ✅ gate 330/330 (31 ไฟล์), E2E 8/8
+  - Contract test รายการจริง 7 ข้อ ผ่านกับ InMemory + LocalStorage (ข้อมูลเสียไม่ทำให้พัง)
+  - ⚠️ แผนที่มี goals + payCycleStartDay ผ่าน schema โดยไม่ถูกตัดทิ้ง (Zod ตัด field ที่ไม่ประกาศ — เจอก่อนเขียน จึงแก้ก่อน)
+  - ไฟล์สำรอง v2 (มีรายการจริง) ไป-กลับครบ, ไฟล์ v1 เดิมยังนำเข้าได้, v2 ที่เสีย → ข้อความไทย
+  - ลบแผน → รายการจริงของแผนหาย แผนอื่นไม่กระทบ; ย้าย Guest → คลาวด์ พร้อมรายการจริง 7 รายการ ย้ายซ้ำไม่ซ้ำ; แผนที่มีแต่รายการจริงไม่ถูกนับเป็นแผนว่าง
+  - RTL: ส่งออก → ลบแผน → นำเข้า ได้แผน (+ เป้า + วันเริ่มรอบ 25) และรายการจริง 7 รายการกลับมา
+- Automated [CI] (branch `phase-11-2` — ไม่ deploy): ⏳ contract test กับ Firestore Emulator + rules test รายการจริง (alice/bob/ไม่ล็อกอิน)
+- ⏳ ก่อน merge เข้า main: เจ้าของโปรเจกต์ต้อง Publish `firestore.rules` ใหม่ใน Console (ไม่งั้นลบแผนตอนล็อกอินจะล้ม เพราะต้องลบรายการจริงใน sub-collection ที่กฎเดิมไม่อนุญาต)
+- การตัดสินใจ: `TransactionRepository.list` คืนทุกรายการของแผน (เป้าหมายต้องรวมทุกรอบ) แทน listByRange ในแผนเดิม — ง่ายกว่าและพอสำหรับการใช้ส่วนตัว

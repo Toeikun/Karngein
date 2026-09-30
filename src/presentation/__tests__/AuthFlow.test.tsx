@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthService, AuthUser, SignInResult } from "@/application/ports/AuthService";
 import { InMemoryActivePlanStore } from "@/infrastructure/storage/LocalStorageActivePlanStore";
 import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRepository";
+import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemoryTransactionRepository";
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { createTestContext } from "../../application/__tests__/testContext";
-import { goldenPlan1 } from "../../domain/__tests__/goldenData";
+import { goldenPlan1, goldenTransactions3 } from "../../domain/__tests__/goldenData";
 
 /** ระบบล็อกอินปลอม — ควบคุมได้จากเทสต์ (ไม่ต่อ Firebase จริง) */
 class FakeAuthService implements AuthService {
@@ -47,7 +48,12 @@ class DeniedRepository extends InMemoryPlanRepository {
 async function setup({ guestPlan = true, denied = false } = {}) {
   const auth = new FakeAuthService();
   const guest = new InMemoryPlanRepository();
-  if (guestPlan) await guest.save(goldenPlan1);
+  const guestTx = new InMemoryTransactionRepository();
+  if (guestPlan) {
+    await guest.save(goldenPlan1);
+    for (const t of goldenTransactions3) await guestTx.save(goldenPlan1.id, t);
+  }
+  const cloudTx = new InMemoryTransactionRepository();
   const clouds = new Map<string, InMemoryPlanRepository>();
   const cloudRepository = (uid: string) => {
     if (!clouds.has(uid)) clouds.set(uid, denied ? new DeniedRepository() : new InMemoryPlanRepository());
@@ -58,13 +64,15 @@ async function setup({ guestPlan = true, denied = false } = {}) {
     <KarngeinApp
       auth={auth}
       repository={guest}
+      transactionRepository={guestTx}
       cloudRepository={cloudRepository}
+      cloudTransactionRepository={() => cloudTx}
       activePlanStore={new InMemoryActivePlanStore()}
       ctx={createTestContext()}
     />,
   );
   await screen.findByRole("heading", { name: "แหล่งรายได้" });
-  return { auth, guest, cloudRepository, user };
+  return { auth, guest, cloudRepository, cloudTx, user };
 }
 
 const card = (name: string) => screen.getByRole("status", { name });
@@ -80,13 +88,14 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     expect(card("รายได้รวม")).toHaveTextContent("฿34,166.67");
   });
 
-  it("ล็อกอิน → ถามย้ายแผน → ตอบย้าย → แผนขึ้นคลาวด์ และหน้าจอแสดงข้อมูลจากคลาวด์", async () => {
-    const { user, cloudRepository } = await setup();
+  it("ล็อกอิน → ถามย้ายแผน → ตอบย้าย → แผน + รายการจริงขึ้นคลาวด์ และหน้าจอแสดงข้อมูลจากคลาวด์", async () => {
+    const { user, cloudRepository, cloudTx } = await setup();
     await user.click(signInButton());
     expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("พบแผนในเครื่องนี้ 1 แผน"));
     await screen.findByRole("button", { name: /บัญชี Alice/ });
     await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿34,166.67"));
     expect((await cloudRepository("alice").get(goldenPlan1.id))?.name).toBe(goldenPlan1.name);
+    expect(await cloudTx.list(goldenPlan1.id)).toHaveLength(goldenTransactions3.length);
   });
 
   it("ตอบไม่ย้าย → คลาวด์ได้แผนใหม่ว่าง แผนในเครื่องยังอยู่", async () => {

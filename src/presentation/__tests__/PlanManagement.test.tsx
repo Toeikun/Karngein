@@ -4,23 +4,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Plan } from "@/domain/entities/Plan";
 import { InMemoryActivePlanStore } from "@/infrastructure/storage/LocalStorageActivePlanStore";
 import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRepository";
+import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemoryTransactionRepository";
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { readText } from "@/presentation/utils/readText";
 import { createTestContext } from "../../application/__tests__/testContext";
-import { goldenPlan1 } from "../../domain/__tests__/goldenData";
+import { goldenPlan1, goldenPlan3, goldenTransactions3 } from "../../domain/__tests__/goldenData";
 
 /** repository + store ใช้ร่วมกันข้ามการเปิดแอปหลายครั้ง (จำลองการรีเฟรชหน้า) */
 function setup() {
   const repository = new InMemoryPlanRepository();
+  const transactionRepository = new InMemoryTransactionRepository();
   const activePlanStore = new InMemoryActivePlanStore();
   const ctx = createTestContext();
   const user = userEvent.setup();
   const open = async () => {
-    const view = render(<KarngeinApp auth={null} repository={repository} activePlanStore={activePlanStore} ctx={ctx} />);
+    const view = render(<KarngeinApp auth={null} repository={repository} transactionRepository={transactionRepository} activePlanStore={activePlanStore} ctx={ctx} />);
     await screen.findByRole("heading", { name: "แหล่งรายได้" });
     return view;
   };
-  return { repository, activePlanStore, user, open };
+  return { repository, transactionRepository, activePlanStore, user, open };
 }
 
 const card = (name: string) => screen.getByRole("status", { name });
@@ -100,7 +102,7 @@ describe("CP-7: หลายแผน", () => {
 
     await user.click(screen.getByRole("button", { name: "จัดการแผน ▾" }));
     await user.click(screen.getByRole("button", { name: "ส่งออกไฟล์สำรอง (JSON)" }));
-    expect(exported).not.toBeNull();
+    await waitFor(() => expect(exported).not.toBeNull());
     const json = await readText(exported!);
 
     await user.click(screen.getByRole("button", { name: "ลบแผนนี้" }));
@@ -132,6 +134,39 @@ describe("CP-7: หลายแผน", () => {
     await user.click(screen.getByRole("button", { name: "จัดการแผน ▾" }));
     await user.click(screen.getByRole("button", { name: "ลบแผนนี้" }));
     expect(await repository.get(goldenPlan1.id)).not.toBeNull();
+  });
+});
+
+describe("CP-11.2: ไฟล์สำรองมีรายการจริง + ลบแผนลบรายการจริงด้วย", () => {
+  it("ส่งออก → ลบแผน (รายการจริงหายด้วย) → นำเข้า → แผน + 7 รายการกลับมา", async () => {
+    const { user, open, repository, transactionRepository } = setup();
+    await repository.save(goldenPlan3);
+    for (const t of goldenTransactions3) await transactionRepository.save(goldenPlan3.id, t);
+    await open();
+
+    let exported: Blob | null = null;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      exported = blob;
+      return "blob:karngein";
+    });
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    await user.click(screen.getByRole("button", { name: "จัดการแผน ▾" }));
+    await user.click(screen.getByRole("button", { name: "ส่งออกไฟล์สำรอง (JSON)" }));
+    await waitFor(() => expect(exported).not.toBeNull());
+    const json = await readText(exported!);
+    expect(JSON.parse(json).transactions).toHaveLength(7);
+
+    await user.click(screen.getByRole("button", { name: "ลบแผนนี้" }));
+    await waitFor(async () => expect(await transactionRepository.list(goldenPlan3.id)).toEqual([]));
+
+    await user.upload(screen.getByLabelText("เลือกไฟล์สำรองที่จะนำเข้า"), new File([json], "backup.json", { type: "application/json" }));
+    await waitFor(() => expect(within(planSelect()).getByRole("option", { selected: true })).toHaveTextContent("(นำเข้า)"));
+    const imported = (await repository.list()).find((p) => p.name.endsWith("(นำเข้า)"))!;
+    expect(imported.goals).toEqual(goldenPlan3.goals);
+    expect(imported.payCycleStartDay).toBe(25);
+    expect(await transactionRepository.list(imported.id)).toHaveLength(7);
   });
 });
 

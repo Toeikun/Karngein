@@ -1,10 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ผู้ใช้แต่ละคน อ่าน/เขียนได้เฉพาะแผนของตัวเอง (PLAN.md ข้อ 5.5)
+    // ผู้ใช้แต่ละคน อ่าน/เขียนได้เฉพาะข้อมูลของตัวเอง (PLAN.md ข้อ 5.5)
     // มีเทสต์: src/infrastructure/__tests__/firestore.rules.firebase.test.ts
+    // ⚠️ แก้ไฟล์นี้แล้วต้องไป Publish ใน Firebase Console → Firestore → Rules ด้วย
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
     match /users/{uid}/plans/{planId} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isOwner(uid);
+
+      // รายการจริงของแผน (Phase 11) — กฎของแผนไม่ครอบคลุม sub-collection อัตโนมัติ ต้องเขียนแยก
+      match /transactions/{transactionId} {
+        allow read, write: if isOwner(uid);
+      }
     }
   }
 }

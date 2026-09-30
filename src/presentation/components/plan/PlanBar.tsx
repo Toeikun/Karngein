@@ -22,7 +22,7 @@ interface PlanBarProps {
   onCreate: () => void;
   onDelete: () => void;
   onImport: (text: string) => Promise<string | null>;
-  onExport: () => string | null;
+  onExport: () => Promise<string | null>;
 }
 
 export function PlanBar({ plan, plans, run, storageNote, onSwitch, onCreate, onDelete, onImport, onExport }: PlanBarProps) {
@@ -85,8 +85,8 @@ export function PlanBar({ plan, plans, run, storageNote, onSwitch, onCreate, onD
             <button
               type="button"
               className={`${button} bg-slate-100 text-slate-700 hover:bg-slate-200`}
-              onClick={() => {
-                const content = onExport();
+              onClick={async () => {
+                const content = await onExport();
                 if (content) downloadText(`karngein-${safeFileName(plan.name)}-${todayIso()}.json`, content);
               }}
             >

@@ -51,6 +51,7 @@ export function usePlan({ repository, activePlanStore, ctx = systemContext }: Us
   const [plan, setPlan] = useState<Plan | null>(null);
   const [plans, setPlans] = useState<PlanListItem[]>([]);
   const [status, setStatus] = useState<SaveStatus>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const planRef = useRef<Plan | null>(null); // แผนล่าสุดเสมอ (ใช้ใน callback)
   const dirtyRef = useRef(false); // มีการแก้ที่ยังไม่ได้บันทึกหรือไม่
 
@@ -90,18 +91,26 @@ export function usePlan({ repository, activePlanStore, ctx = systemContext }: Us
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const all = await listPlans(repo);
-      // ถ้า effect ถูกยกเลิกระหว่างรอ (เช่น StrictMode ในโหมด dev รัน effect 2 รอบ)
-      // ต้องหยุดก่อนสร้างแผนใหม่ ไม่งั้นจะได้แผนว่างซ้ำ 2 แผน
-      if (cancelled) return;
-      let loaded = all.find((p) => p.id === active.get()) ?? all[0];
-      if (!loaded) {
-        loaded = createPlan(ctx);
-        await savePlan(repo, loaded);
+      try {
+        const all = await listPlans(repo);
+        // ถ้า effect ถูกยกเลิกระหว่างรอ (เช่น StrictMode ในโหมด dev รัน effect 2 รอบ)
+        // ต้องหยุดก่อนสร้างแผนใหม่ ไม่งั้นจะได้แผนว่างซ้ำ 2 แผน
+        if (cancelled) return;
+        let loaded = all.find((p) => p.id === active.get()) ?? all[0];
+        if (!loaded) {
+          loaded = createPlan(ctx);
+          await savePlan(repo, loaded);
+        }
+        if (cancelled) return;
+        show(loaded);
+        await refreshList();
+      } catch (error) {
+        // โหลดไม่ได้ (เช่น ไม่มีสิทธิ์ / ไม่มีเน็ตและไม่มีข้อมูลในเครื่อง) → แจ้งผู้ใช้ ไม่ค้างหน้า "กำลังโหลด"
+        console.error("[Karngein] โหลดแผนไม่สำเร็จ", error);
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : String(error));
+        setStatus("error");
       }
-      if (cancelled) return;
-      show(loaded);
-      await refreshList();
     })();
     return () => {
       cancelled = true;
@@ -199,5 +208,5 @@ export function usePlan({ repository, activePlanStore, ctx = systemContext }: Us
     return current ? planFileFormat.serialize(current, ctx.now()) : null;
   }, [ctx]);
 
-  return { plan, plans, status, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan };
+  return { plan, plans, status, loadError, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan };
 }

@@ -33,7 +33,7 @@ export class FirestorePlanRepository implements PlanRepository {
   }
 
   async list(): Promise<Plan[]> {
-    const snapshot = await getDocs(this.plansCollection());
+    const snapshot = await friendly(getDocs(this.plansCollection()));
     const plans: Plan[] = [];
     snapshot.forEach((document) => {
       const plan = parsePlan(document.data());
@@ -44,7 +44,7 @@ export class FirestorePlanRepository implements PlanRepository {
   }
 
   async get(id: string): Promise<Plan | null> {
-    const snapshot = await getDoc(doc(this.plansCollection(), id));
+    const snapshot = await friendly(getDoc(doc(this.plansCollection(), id)));
     return snapshot.exists() ? parsePlan(snapshot.data()) : null;
   }
 
@@ -53,7 +53,7 @@ export class FirestorePlanRepository implements PlanRepository {
     const data = JSON.parse(JSON.stringify(plan)) as Plan;
     const write = setDoc(doc(this.plansCollection(), plan.id), data);
     if (this.isOnline()) {
-      await write;
+      await friendly(write);
     } else {
       write.catch((error) => console.error("[Karngein] ซิงก์แผนขึ้นคลาวด์ไม่สำเร็จ", error));
     }
@@ -61,8 +61,27 @@ export class FirestorePlanRepository implements PlanRepository {
 
   async delete(id: string): Promise<void> {
     const write = deleteDoc(doc(this.plansCollection(), id));
-    if (this.isOnline()) await write;
+    if (this.isOnline()) await friendly(write);
     else write.catch((error) => console.error("[Karngein] ลบแผนบนคลาวด์ไม่สำเร็จ", error));
+  }
+}
+
+/** รหัส error ของ Firestore → ข้อความภาษาไทยที่ผู้ใช้เข้าใจ */
+const ERROR_MESSAGES: Record<string, string> = {
+  "permission-denied":
+    "ไม่มีสิทธิ์เข้าถึงข้อมูลบนคลาวด์ — ตรวจ Firestore Rules ใน Firebase Console ว่า Publish กฎของ Karngein แล้ว",
+  unauthenticated: "ยังไม่ได้เข้าสู่ระบบ หรือการเข้าสู่ระบบหมดอายุ — ลองออกจากระบบแล้วเข้าใหม่",
+  unavailable: "เชื่อมต่อคลาวด์ไม่ได้ — ลองใหม่เมื่อออนไลน์",
+  "not-found": "ไม่พบฐานข้อมูล Firestore ของโปรเจกต์ — ตรวจว่าสร้าง Firestore Database แล้ว",
+};
+
+async function friendly<T>(promise: Promise<T>): Promise<T> {
+  try {
+    return await promise;
+  } catch (error) {
+    const code = (error as { code?: string }).code ?? "";
+    const message = ERROR_MESSAGES[code];
+    throw message ? new Error(message, { cause: error }) : error;
   }
 }
 

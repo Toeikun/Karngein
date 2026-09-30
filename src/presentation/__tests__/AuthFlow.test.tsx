@@ -32,13 +32,20 @@ class FakeAuthService implements AuthService {
   }
 }
 
-async function setup({ guestPlan = true } = {}) {
+/** คลาวด์ที่ปฏิเสธทุกคำขอ (จำลอง Firestore Rules ที่ไม่อนุญาต) */
+class DeniedRepository extends InMemoryPlanRepository {
+  override async list(): Promise<never> {
+    throw new Error("ไม่มีสิทธิ์เข้าถึงข้อมูลบนคลาวด์ — ตรวจ Firestore Rules");
+  }
+}
+
+async function setup({ guestPlan = true, denied = false } = {}) {
   const auth = new FakeAuthService();
   const guest = new InMemoryPlanRepository();
   if (guestPlan) await guest.save(goldenPlan1);
   const clouds = new Map<string, InMemoryPlanRepository>();
   const cloudRepository = (uid: string) => {
-    if (!clouds.has(uid)) clouds.set(uid, new InMemoryPlanRepository());
+    if (!clouds.has(uid)) clouds.set(uid, denied ? new DeniedRepository() : new InMemoryPlanRepository());
     return clouds.get(uid)!;
   };
   const user = userEvent.setup();
@@ -103,6 +110,15 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     await user.click(screen.getByRole("button", { name: "ออกจากระบบ" }));
     await waitFor(() => expect(signInButton()).toBeInTheDocument());
     await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿34,166.67"));
+  });
+
+  it("คลาวด์ปฏิเสธสิทธิ์ → แสดงข้อความ error ไม่ค้างหน้า 'กำลังโหลด'", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { user } = await setup({ denied: true });
+    await user.click(signInButton());
+    expect(await screen.findByText("โหลดแผนไม่สำเร็จ")).toBeInTheDocument();
+    expect(screen.getByText(/ตรวจ Firestore Rules/)).toBeInTheDocument();
+    expect(screen.queryByText(/กำลังโหลดแผน/)).not.toBeInTheDocument();
   });
 
   it("ล็อกอินไม่สำเร็จ → แสดงข้อความ error ภาษาไทย", async () => {

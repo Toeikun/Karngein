@@ -24,7 +24,7 @@ interface PlanWorkspaceProps extends UsePlanOptions {
 }
 
 export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps) {
-  const { plan, plans, status, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan } =
+  const { plan, plans, status, loadError, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan } =
     usePlan(options);
   const online = useOnlineStatus();
   const [period, setPeriod] = useState<Period>({ kind: "monthly" });
@@ -34,7 +34,13 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
     <>
       <Header status={status} offline={mode === "cloud" && !online} account={account} />
 
-      {!plan || !summary ? (
+      {loadError ? (
+        <div role="alert" className="rounded-3xl bg-red-50 p-6 text-center text-red-800 ring-1 ring-red-100">
+          <p className="font-semibold">โหลดแผนไม่สำเร็จ</p>
+          <p className="mt-1 text-sm">{loadError}</p>
+          {mode === "cloud" && <p className="mt-3 text-xs text-red-700">ออกจากระบบ (มุมขวาบน) เพื่อกลับไปใช้ข้อมูลในเครื่องได้</p>}
+        </div>
+      ) : !plan || !summary ? (
         <p className="py-20 text-center text-slate-500">กำลังโหลดแผน…</p>
       ) : (
         <>

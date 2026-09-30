@@ -3,12 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { summarize } from "@/domain/services/summarize";
 import type { Period } from "@/domain/entities/Period";
-import { FlowSection } from "@/presentation/components/flow/FlowSection";
+import { PlanFlowSection } from "@/presentation/components/flow/PlanFlowSection";
 import { goldenPlan1 } from "../../domain/__tests__/goldenData";
 
 function renderFlow(period: Period = { kind: "monthly" }) {
   const user = userEvent.setup();
-  const utils = render(<FlowSection plan={goldenPlan1} period={period} summary={summarize(goldenPlan1, period)} />);
+  const utils = render(<PlanFlowSection plan={goldenPlan1} period={period} summary={summarize(goldenPlan1, period)} />);
   const chart = () => screen.getByRole("img", { name: "แผนภาพการไหลของเงิน" });
   const nodeText = (id: string) => utils.container.querySelector(`[data-node-id="${id}"] text`)?.textContent ?? null;
   return { user, chart, nodeText, container: utils.container };
@@ -89,7 +89,7 @@ describe("CP-6 (แก้เพิ่ม): เรียงโหนดตาม�
     if (!result.ok) throw new Error("preset failed");
     const plan = result.plan;
     const period = { kind: "monthly" } as const;
-    const { container } = render(<FlowSection plan={plan} period={period} summary={summarize(plan, period)} />);
+    const { container } = render(<PlanFlowSection plan={plan} period={period} summary={summarize(plan, period)} />);
 
     const expectedOrder = buildFlowGraph(plan, period).nodes.map((n) => n.id);
     const rects = [...container.querySelectorAll<SVGGElement>("[data-node-id]")].map((g) => {

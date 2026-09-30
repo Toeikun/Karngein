@@ -156,3 +156,33 @@ describe("CP-11.3: หน้า บันทึกจริง — สถาน�
     expect(screen.getByRole("tab", { name: "วางแผน" })).toHaveAttribute("aria-selected", "true");
   });
 });
+
+describe("ผังการไหลของเงิน (ตามจริง) — ใช้ FlowSection ตัวเดียวกับแท็บวางแผน", () => {
+  it("ยังไม่มีรายการ → ข้อความแนะนำ / ลงรายการแล้ว → ผังแสดงข้อมูลจริงของรอบ", async () => {
+    const { user } = await openActual();
+    expect(screen.getByRole("heading", { name: "ผังการไหลของเงิน (ตามจริง)" })).toBeInTheDocument();
+    expect(screen.getByText(/ลงรายการของรอบนี้แล้วผังจะปรากฏที่นี่/)).toBeInTheDocument();
+
+    await record(user, { type: "income", amount: "44100", date: "2026-09-25", income: "inc-salary" });
+    await record(user, { amount: "5000", date: "2026-10-01", group: "grp-emergency" });
+
+    const chart = screen.getByRole("img", { name: "แผนภาพการไหลของเงิน" });
+    const text = (id: string) => chart.querySelector(`[data-node-id="${id}"] text`)?.textContent ?? null;
+    expect(text("income:inc-salary")).toContain("เงินเดือน");
+    expect(text("category:emergency")).toContain("11.3%");
+    expect(text("remaining")).toContain("88.7%");
+
+    // แถบเครื่องมือของกลางใช้ได้เหมือนกัน
+    await user.click(screen.getByRole("button", { name: "ตัวเลข (฿)" }));
+    expect(text("remaining")).toContain("฿39,100.00");
+    expect(screen.getByTestId("ratio-emergency")).toHaveTextContent("11.3%");
+  });
+
+  it("รายจ่ายก่อนมีรายรับในรอบ → มีหมายเหตุ และผังแสดง 'เงินขาด'", async () => {
+    const { user } = await openActual();
+    await record(user, { amount: "300", date: "2026-10-02", group: "grp-food" });
+    expect(screen.getByText(/รอบนี้ยังไม่มีรายรับ/)).toBeInTheDocument();
+    const chart = screen.getByRole("img", { name: "แผนภาพการไหลของเงิน" });
+    expect(chart.querySelector('[data-node-id="deficit"]')).not.toBeNull();
+  });
+});

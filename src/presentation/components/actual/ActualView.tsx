@@ -16,6 +16,7 @@ import type { RunUseCase } from "../../hooks/usePlan";
 import { useTransactions } from "../../hooks/useTransactions";
 import { todayIso } from "../../utils/parseAmount";
 import { LoadingState } from "../ui/LoadingState";
+import { ActualFlowSection } from "./ActualFlowSection";
 import { BudgetBars } from "./BudgetBars";
 import { CycleNavigator } from "./CycleNavigator";
 import { CycleSummaryCards } from "./CycleSummaryCards";
@@ -85,6 +86,7 @@ export function ActualView({ plan, run, repository, ctx }: ActualViewProps) {
           />
         </div>
       </div>
+      <ActualFlowSection plan={plan} transactions={transactions} cycle={cycle} summary={summary} />
     </div>
   );
 }

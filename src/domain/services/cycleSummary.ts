@@ -8,7 +8,7 @@ import { CATEGORIES, type CategoryId } from "../entities/Category";
 import { isInCycle, type PayCycle } from "../entities/PayCycle";
 import type { Plan } from "../entities/Plan";
 import type { Transaction } from "../entities/Transaction";
-import { groupTotal } from "./summarize";
+import { groupTotal, percentOf, type CategorySummary } from "./summarize";
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
@@ -73,4 +73,11 @@ export function compareWithBudget(plan: Plan, transactions: Transaction[], cycle
     expenses.filter((t) => !t.planGroupId || !groupIds.has(t.planGroupId)).map((t) => t.amount),
   );
   return { lines, unlinkedExpense };
+}
+
+/** สัดส่วนของแต่ละหมวดเทียบรายรับจริงของรอบ (รูปแบบเดียวกับของแผน → ใช้การ์ดสัดส่วนตัวเดียวกันได้) */
+export function cycleCategoryRatios(summary: CycleSummary): Record<CategoryId, CategorySummary> {
+  return Object.fromEntries(
+    CATEGORIES.map((c) => [c.id, { amount: summary.byCategory[c.id], percentOfIncome: percentOf(summary.byCategory[c.id], summary.income) }]),
+  ) as Record<CategoryId, CategorySummary>;
 }

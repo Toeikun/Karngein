@@ -11,7 +11,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { usePlan, type UsePlanOptions } from "../hooks/usePlan";
 import { ActualView } from "./actual/ActualView";
 import { ExpenseList } from "./expense/ExpenseList";
-import { FlowSection } from "./flow/FlowSection";
+import { PlanFlowSection } from "./flow/PlanFlowSection";
 import { IncomeList } from "./income/IncomeList";
 import { Header } from "./layout/Header";
 import { PeriodSwitcher } from "./period/PeriodSwitcher";
@@ -72,7 +72,7 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
                 <IncomeList incomes={plan.incomes} run={run} />
                 <ExpenseList expenses={plan.expenses} period={period} run={run} />
               </div>
-              <FlowSection plan={plan} period={period} summary={summary} />
+              <PlanFlowSection plan={plan} period={period} summary={summary} />
             </>
           ) : (
             // key = plan.id → สลับแผนแล้วโหลดรายการของแผนใหม่ทั้งหมด

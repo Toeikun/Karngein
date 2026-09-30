@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const card = (page: Page, name: string) => page.getByRole("status", { name });
+/** รายการในรอบ (ชื่อรายการจะอยู่ในผังการไหลของเงินด้วย จึงค้นเฉพาะในรายการ) */
+const txList = (page: Page) => page.locator("section[aria-labelledby=tx-heading]");
 
 /** วันที่แบบ 'YYYY-MM-DD' ห่างจากวันนี้ n วัน (เวลาท้องถิ่น) */
 function isoDaysFromToday(n: number): string {
@@ -39,7 +41,7 @@ test("บันทึกจริง: ตั้งรอบ → ลงราย�
   await form.getByLabel("วันที่รายการ").fill(isoDaysFromToday(-1));
   await form.getByLabel("โน้ต").fill("กาแฟเมื่อวาน");
   await form.getByRole("button", { name: "บันทึกรายการ" }).click();
-  await expect(page.getByText("กาแฟเมื่อวาน")).toHaveCount(0); // ไม่อยู่ในรอบนี้
+  await expect(page.getByText("กาแฟเมื่อวาน")).toHaveCount(0); // ไม่อยู่ทั้งในรายการและในผังของรอบนี้ // ไม่อยู่ในรอบนี้
 
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
   await expect(card(page, "จ่ายจริง")).toHaveText("฿8,000.00");
@@ -47,7 +49,7 @@ test("บันทึกจริง: ตั้งรอบ → ลงราย�
   await expect(page.getByText("฿8,000.00 / ฿19,050.00 (42.0%)")).toBeVisible();
 
   await page.getByRole("button", { name: "รอบก่อนหน้า" }).click();
-  await expect(page.getByText("กาแฟเมื่อวาน")).toBeVisible();
+  await expect(txList(page).getByText("กาแฟเมื่อวาน")).toBeVisible();
   await expect(card(page, "จ่ายจริง")).toHaveText("฿99.00");
 
   // รีโหลด → รายการยังอยู่ (เก็บในเบราว์เซอร์ โหมด Guest)
@@ -55,7 +57,8 @@ test("บันทึกจริง: ตั้งรอบ → ลงราย�
   await page.reload();
   await page.getByRole("tab", { name: "บันทึกจริง" }).click();
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
-  await expect(page.getByText("ค่าเช่า")).toBeVisible();
+  await expect(txList(page).getByText("ค่าเช่า")).toBeVisible();
+  await expect(page.getByRole("img", { name: "แผนภาพการไหลของเงิน" })).toBeVisible(); // ผังตามจริงแสดงหลังรีโหลด
 
   // มือถือ: ไม่มี scroll แนวนอน และปุ่ม/ช่องกรอก ≥ 44px
   const { overflow, smallest } = await page.evaluate(() => ({

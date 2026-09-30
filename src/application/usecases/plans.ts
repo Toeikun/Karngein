@@ -3,6 +3,7 @@
  *
  * ฟังก์ชันพวกนี้ไม่รู้ว่าข้อมูลไปเก็บที่ไหน — ใครส่ง repository แบบไหนมาก็ทำงานได้
  */
+import { isValidStartDay } from "@/domain/entities/PayCycle";
 import { createEmptyPlan, type Plan } from "@/domain/entities/Plan";
 import type { UseCaseContext } from "../context";
 import type { PlanRepository } from "../ports/PlanRepository";
@@ -44,4 +45,10 @@ export function renamePlan(plan: Plan, name: string, ctx: UseCaseContext): PlanR
  */
 export function copyImportedPlan(imported: Plan, ctx: UseCaseContext): Plan {
   return { ...imported, id: ctx.generateId(), name: `${imported.name} (นำเข้า)`, updatedAt: ctx.now().toISOString() };
+}
+
+/** ตั้งวันเริ่มรอบเงินเดือนของแผน (1–31) */
+export function setPayCycleStartDay(plan: Plan, day: number, ctx: UseCaseContext): PlanResult {
+  if (!isValidStartDay(day)) return failure([{ field: "payCycleStartDay", message: "วันเริ่มรอบต้องเป็นวันที่ 1–31" }]);
+  return success(touch({ ...plan, payCycleStartDay: day }, ctx.now()));
 }

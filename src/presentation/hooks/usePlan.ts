@@ -215,5 +215,5 @@ export function usePlan({ repository, transactionRepository, activePlanStore, ct
     return planFileFormat.serialize(current, await txRepo.list(current.id), ctx.now());
   }, [txRepo, ctx]);
 
-  return { plan, plans, status, loadError, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan };
+  return { plan, plans, status, loadError, transactionRepository: txRepo, ctx, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan };
 }

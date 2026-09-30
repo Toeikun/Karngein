@@ -37,7 +37,7 @@ export function AccountMenu({ status, user, error, onSignIn, onSignOut }: Accoun
         <button
           type="button"
           onClick={onSignIn}
-          className="flex h-11 items-center gap-2 rounded-xl bg-white px-3 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+          className="flex h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-white px-3 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
         >
           <GoogleIcon />
           <span className="hidden sm:inline">เข้าสู่ระบบด้วย Google</span>

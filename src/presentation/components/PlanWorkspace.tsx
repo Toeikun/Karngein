@@ -9,6 +9,7 @@ import type { Period } from "@/domain/entities/Period";
 import { summarize } from "@/domain/services/summarize";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { usePlan, type UsePlanOptions } from "../hooks/usePlan";
+import { ActualView } from "./actual/ActualView";
 import { ExpenseList } from "./expense/ExpenseList";
 import { FlowSection } from "./flow/FlowSection";
 import { IncomeList } from "./income/IncomeList";
@@ -25,10 +26,11 @@ interface PlanWorkspaceProps extends UsePlanOptions {
 }
 
 export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps) {
-  const { plan, plans, status, loadError, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan } =
+  const { plan, plans, status, loadError, transactionRepository, ctx, run, switchPlan, createNewPlan, deleteCurrentPlan, importPlanFile, exportCurrentPlan } =
     usePlan(options);
   const online = useOnlineStatus();
   const [period, setPeriod] = useState<Period>({ kind: "monthly" });
+  const [tab, setTab] = useState<"plan" | "actual">("plan");
   const summary = plan ? summarize(plan, period) : null;
 
   return (
@@ -60,16 +62,47 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
             onImport={importPlanFile}
             onExport={exportCurrentPlan}
           />
-          <SummaryCards summary={summary} />
-          <PeriodSwitcher period={period} onChange={setPeriod} />
-          <PresetBar plan={plan} run={run} />
-          <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
-            <IncomeList incomes={plan.incomes} run={run} />
-            <ExpenseList expenses={plan.expenses} period={period} run={run} />
-          </div>
-          <FlowSection plan={plan} period={period} summary={summary} />
+          <WorkspaceTabs tab={tab} onChange={setTab} />
+          {tab === "plan" ? (
+            <>
+              <SummaryCards summary={summary} />
+              <PeriodSwitcher period={period} onChange={setPeriod} />
+              <PresetBar plan={plan} run={run} />
+              <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
+                <IncomeList incomes={plan.incomes} run={run} />
+                <ExpenseList expenses={plan.expenses} period={period} run={run} />
+              </div>
+              <FlowSection plan={plan} period={period} summary={summary} />
+            </>
+          ) : (
+            // key = plan.id → สลับแผนแล้วโหลดรายการของแผนใหม่ทั้งหมด
+            <ActualView key={plan.id} plan={plan} run={run} repository={transactionRepository} ctx={ctx} />
+          )}
         </>
       )}
     </>
+  );
+}
+
+function WorkspaceTabs({ tab, onChange }: { tab: "plan" | "actual"; onChange: (tab: "plan" | "actual") => void }) {
+  const tabs = [
+    { id: "plan" as const, label: "วางแผน" },
+    { id: "actual" as const, label: "บันทึกจริง" },
+  ];
+  return (
+    <div role="tablist" aria-label="มุมมองของแผน" className="flex rounded-2xl bg-slate-200/70 p-1">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={tab === t.id}
+          onClick={() => onChange(t.id)}
+          className={`h-11 flex-1 rounded-xl text-sm font-semibold transition ${tab === t.id ? "bg-white text-indigo-700 shadow" : "text-slate-600"}`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
   );
 }

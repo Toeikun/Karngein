@@ -355,6 +355,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - ไฟล์สำรอง v2 (มีรายการจริง) ไป-กลับครบ, ไฟล์ v1 เดิมยังนำเข้าได้, v2 ที่เสีย → ข้อความไทย
   - ลบแผน → รายการจริงของแผนหาย แผนอื่นไม่กระทบ; ย้าย Guest → คลาวด์ พร้อมรายการจริง 7 รายการ ย้ายซ้ำไม่ซ้ำ; แผนที่มีแต่รายการจริงไม่ถูกนับเป็นแผนว่าง
   - RTL: ส่งออก → ลบแผน → นำเข้า ได้แผน (+ เป้า + วันเริ่มรอบ 25) และรายการจริง 7 รายการกลับมา
-- Automated [CI] (branch `phase-11-2` — ไม่ deploy): ⏳ contract test กับ Firestore Emulator + rules test รายการจริง (alice/bob/ไม่ล็อกอิน)
+- Automated [CI] (branch `phase-11-2`, run 36670257005): ✅ gate / firebase / e2e ผ่าน, deploy ข้าม (ตั้งใจ — deploy เฉพาะ main)
+  - contract test รายการจริงกับ Firestore Emulator + rules test รายการจริง (alice ได้ / bob ไม่ได้ / ไม่ล็อกอินไม่ได้) ผ่าน
 - ⏳ ก่อน merge เข้า main: เจ้าของโปรเจกต์ต้อง Publish `firestore.rules` ใหม่ใน Console (ไม่งั้นลบแผนตอนล็อกอินจะล้ม เพราะต้องลบรายการจริงใน sub-collection ที่กฎเดิมไม่อนุญาต)
 - การตัดสินใจ: `TransactionRepository.list` คืนทุกรายการของแผน (เป้าหมายต้องรวมทุกรอบ) แทน listByRange ในแผนเดิม — ง่ายกว่าและพอสำหรับการใช้ส่วนตัว

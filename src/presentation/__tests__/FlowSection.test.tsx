@@ -79,3 +79,30 @@ describe("CP-6: Sankey บนหน้าจอ", () => {
     expect(screen.getByTestId("ratio-reward")).toHaveTextContent("12.2%");
   });
 });
+
+describe("CP-6 (แก้เพิ่ม): เรียงโหนดตามหมวด ไม่สลับกัน", () => {
+  it("ทุกคอลัมน์เรียงจากบนลงล่างตามลำดับที่ buildFlowGraph ให้ (หมวด → กลุ่ม → รายการ)", async () => {
+    const { applyPreset } = await import("@/application/usecases/presets");
+    const { createTestContext, basePlan } = await import("../../application/__tests__/testContext");
+    const { buildFlowGraph } = await import("@/domain/services/buildFlowGraph");
+    const result = applyPreset(basePlan(), "salaryman", createTestContext());
+    if (!result.ok) throw new Error("preset failed");
+    const plan = result.plan;
+    const period = { kind: "monthly" } as const;
+    const { container } = render(<FlowSection plan={plan} period={period} summary={summarize(plan, period)} />);
+
+    const expectedOrder = buildFlowGraph(plan, period).nodes.map((n) => n.id);
+    const rects = [...container.querySelectorAll<SVGGElement>("[data-node-id]")].map((g) => {
+      const rect = g.querySelector("rect")!;
+      return { id: g.dataset.nodeId!, x: Number(rect.getAttribute("x")), y: Number(rect.getAttribute("y")) };
+    });
+    // จัดกลุ่มตามคอลัมน์ (x เดียวกัน) แล้วดูว่าเรียงตาม y ตรงกับลำดับที่คาดไว้
+    const columns = new Map<number, typeof rects>();
+    for (const r of rects) columns.set(r.x, [...(columns.get(r.x) ?? []), r]);
+    for (const column of columns.values()) {
+      const byY = [...column].sort((a, b) => a.y - b.y).map((r) => r.id);
+      const byInput = [...column].sort((a, b) => expectedOrder.indexOf(a.id) - expectedOrder.indexOf(b.id)).map((r) => r.id);
+      expect(byY).toEqual(byInput);
+    }
+  });
+});

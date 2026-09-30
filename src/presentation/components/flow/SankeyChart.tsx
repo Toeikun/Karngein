@@ -48,6 +48,10 @@ export const SankeyChart = forwardRef<SVGSVGElement, SankeyChartProps>(function 
     const generator = sankey<FlowNode, FlowLink>()
       .nodeId((node) => node.id)
       .nodeAlign(sankeyJustify)
+      // ไม่ให้ d3 สลับลำดับเอง — ใช้ลำดับจาก buildFlowGraph (หมวด → กลุ่ม → รายการ) ซึ่งตรงกับลำดับสีด้านบน
+      // (ค่าเริ่มต้นของ d3 จะจัดเรียงใหม่เพื่อลดเส้นตัดกัน ทำให้รายการต่างหมวดปนกัน)
+      .nodeSort(null)
+      .linkSort(null)
       .nodeWidth(14)
       .nodePadding(16)
       .extent([

@@ -210,7 +210,8 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - ย้ายแผน Guest: 2 แผน → ย้ายครบ, id ซ้ำเลือก updatedAt ใหม่กว่า, ย้ายแล้วไม่ถามซ้ำ, แผนว่างไม่ถาม
   - RTL (AuthService ปลอม): ล็อกอิน → ถามย้าย → ย้าย/ไม่ย้าย, ออกจากระบบ → กลับข้อมูลในเครื่อง, ล็อกอินผิดพลาด → ข้อความไทย, ไม่ตั้งค่า Firebase → ไม่มีปุ่มล็อกอิน
   - Architecture: `firebase` import ได้เฉพาะใน `src/infrastructure/`, Presentation import Infrastructure ตรงๆ ไม่ได้
-- Automated [CI] (GitHub Actions — ⏳ รอ push):
+- Automated [CI] (GitHub Actions): ✅ CI run #1 (commit 6982628) เขียว ใช้เวลา 1m 50s — job `gate` + job `firebase` ผ่านทั้งคู่
+  (vitest ล้มเองถ้าไม่พบไฟล์เทสต์ และ `firebase emulators:exec` ล้มถ้าเทสต์ล้ม → run เขียว = เทสต์ Firestore ชุดนี้รันและผ่านจริง)
   - Contract test 9 ข้อ กับ `FirestorePlanRepository` บน Emulator
   - Rules: alice อ่าน/เขียนของตัวเองได้, อ่าน/เขียนของ bob ไม่ได้, ไม่ล็อกอินทำอะไรไม่ได้, path อื่นปิดหมด
 - Manual (ทำแล้วบางส่วน):
@@ -218,6 +219,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - ✅ กดปุ่ม → เรียก `karngein-1eef7.firebaseapp.com` (config ถูก) — Browser pane บล็อก popup ที่ไม่ได้มาจากผู้ใช้ → แสดงข้อความ "เบราว์เซอร์บล็อกหน้าต่างเข้าสู่ระบบ…" ถูกต้อง
   - ⏳ ขั้นตอนที่ต้องล็อกอินจริง — เจ้าของโปรเจกต์ต้องทำเอง (ข้อ 1–4 ใน PLAN.md CP-8)
 - 🐞 ปัญหาที่เจอและแก้แล้ว:
+  0. push ไม่ผ่าน "Can't push refs… Try Pull" → สาเหตุจริง: token ไม่มีสิทธิ์ **Workflows** (GitHub ไม่ยอมให้ push ไฟล์ `.github/workflows/*`) → เพิ่มสิทธิ์ Workflows: Read and write ให้ token เดิม → push ผ่าน (บทเรียน: ข้อความของ IDE อาจไม่ตรงสาเหตุ ให้ดูข้อความจาก `git push` ใน terminal)
   1. ผู้ใช้ใหม่ที่ยังไม่กรอกอะไรเลย ล็อกอินแล้วถูกถาม "พบแผนในเครื่อง 1 แผน" (แผนว่างที่แอปสร้างให้อัตโนมัติ) → ไม่ย้ายแผนว่าง + เทสต์
   2. ESLint pattern `firebase/*` ไปจับ `@/infrastructure/firebase/...` ด้วย → ใช้ regex `^firebase(/.*)?$`
   3. Hydration failed: HTML ตอน build (ไม่มี Firebase) ต่างจากในเบราว์เซอร์ (มีปุ่มล็อกอิน) → `useIsClient` ให้ render แรกเหมือนกัน → ตรวจซ้ำแล้วไม่มี error

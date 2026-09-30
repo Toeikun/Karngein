@@ -13,6 +13,11 @@ class FakeAuthService implements AuthService {
   private listeners = new Set<(user: AuthUser | null) => void>();
   private user: AuthUser | null = null;
   nextSignIn: SignInResult = { ok: true };
+  hint = false;
+
+  probablySignedIn() {
+    return this.hint;
+  }
 
   onChange(callback: (user: AuthUser | null) => void) {
     this.listeners.add(callback);
@@ -126,6 +131,19 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     auth.nextSignIn = { ok: false, message: "เบราว์เซอร์บล็อกหน้าต่างเข้าสู่ระบบ" };
     await user.click(signInButton());
     expect(await screen.findByRole("alert")).toHaveTextContent("เบราว์เซอร์บล็อกหน้าต่างเข้าสู่ระบบ");
+  });
+
+  it("ครั้งก่อนล็อกอินอยู่ (hint) → รอยืนยันก่อน ไม่แสดงข้อมูลในเครื่องชั่วคราว", async () => {
+    const auth = new FakeAuthService();
+    auth.hint = true;
+    const guest = new InMemoryPlanRepository();
+    await guest.save(goldenPlan1);
+    render(<KarngeinApp auth={auth} repository={guest} cloudRepository={() => new InMemoryPlanRepository()} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
+    expect(screen.getAllByText("กำลังโหลด…").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("status", { name: "รายได้รวม" })).not.toBeInTheDocument();
+    auth.emit({ uid: "alice", displayName: "Alice", email: "a@x.com" });
+    await screen.findByRole("button", { name: /บัญชี Alice/ });
+    expect(screen.queryByText("฿34,166.67")).not.toBeInTheDocument(); // ไม่เคยแสดงข้อมูล guest
   });
 
   it("ไม่ได้ตั้งค่า Firebase (auth = null) → ไม่มีปุ่มเข้าสู่ระบบ ใช้แบบ Guest ได้ปกติ", async () => {

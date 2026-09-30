@@ -26,6 +26,10 @@ export class FirebaseAuthService implements AuthService {
     );
   }
 
+  probablySignedIn(): boolean {
+    return this.auth.currentUser !== null;
+  }
+
   async signIn(): Promise<SignInResult> {
     try {
       await signInWithPopup(this.auth, new GoogleAuthProvider());

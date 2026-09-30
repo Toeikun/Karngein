@@ -39,7 +39,7 @@ export function FlowToolbar(props: FlowToolbarProps) {
               type="button"
               aria-pressed={labelMode === mode.value}
               onClick={() => onLabelModeChange(mode.value)}
-              className={`h-11 rounded-lg px-3 text-sm ${labelMode === mode.value ? "bg-white font-medium text-slate-900 shadow-sm" : "text-slate-500"}`}
+              className={`h-11 rounded-lg px-3 text-sm ${labelMode === mode.value ? "bg-white font-medium text-slate-900 shadow-sm" : "text-slate-700"}`}
             >
               {mode.label}
             </button>
@@ -50,7 +50,7 @@ export function FlowToolbar(props: FlowToolbarProps) {
           <button type="button" aria-label="ซูมออก" className={`${small} bg-slate-100 hover:bg-slate-200`} onClick={() => onZoom(clampZoom(zoom - 0.25))} disabled={zoom <= MIN_ZOOM}>
             −
           </button>
-          <button type="button" aria-label="รีเซ็ตซูม" className={`${small} tabular-nums text-slate-600 hover:bg-slate-100`} onClick={() => onZoom(1)}>
+          <button type="button" aria-label={`${Math.round(zoom * 100)}% รีเซ็ตซูม`} className={`${small} tabular-nums text-slate-600 hover:bg-slate-100`} onClick={() => onZoom(1)}>
             {Math.round(zoom * 100)}%
           </button>
           <button type="button" aria-label="ซูมเข้า" className={`${small} bg-slate-100 hover:bg-slate-200`} onClick={() => onZoom(clampZoom(zoom + 0.25))} disabled={zoom >= MAX_ZOOM}>

@@ -786,7 +786,9 @@ P0 ตั้งโปรเจกต์ → P1 Entities → P2 คำนวณ �
 - Meta สำหรับ iOS (`apple-touch-icon`, `theme-color`)
 - Empty state, loading state, toast
 - Accessibility: label ทุก input, ใช้คีย์บอร์ดได้, contrast ผ่าน
-- Playwright: รันทั้ง viewport มือถือ (iPhone) และเดสก์ท็อป
+- Playwright: รันทั้ง viewport มือถือ (Pixel 7) และเดสก์ท็อป
+  - ในเครื่องใช้ Google Chrome ที่มีอยู่ (`channel: "chrome"`) ไม่ดาวน์โหลดเบราว์เซอร์เพิ่ม (D8) / บน CI ใช้ Chromium
+  - `npm run build:e2e` (build แบบ Guest) → `npm run test:e2e` / Lighthouse: `bash scripts/lighthouse.sh`
 
 **✅ CP-9: พร้อมใช้บนมือถือและคอมฯ**
 - 🤖 E2E (มือถือ + เดสก์ท็อป): เปิดเว็บ → ใช้ preset มนุษย์เงินเดือน → เพิ่มรายจ่าย → สลับรายปี → ตัวเลขถูก → รีโหลด → ข้อมูลยังอยู่

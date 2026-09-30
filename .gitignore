@@ -42,3 +42,7 @@ next-env.d.ts
 
 # env ตัวอย่าง (ไม่มีค่าจริง) ให้ commit ได้
 !.env.example
+
+# Playwright
+/test-results/
+/playwright-report/

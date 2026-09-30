@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "gate": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "test:firebase": "firebase emulators:exec --only firestore --project demo-karngein \"vitest run --config vitest.firebase.config.mts\""
+    "test:firebase": "firebase emulators:exec --only firestore --project demo-karngein \"vitest run --config vitest.firebase.config.mts\"",
+    "test:e2e": "playwright test",
+    "build:e2e": "NEXT_PUBLIC_FIREBASE_API_KEY= next build"
   },
   "dependencies": {
     "d3-sankey": "^0.12.3",
@@ -22,6 +24,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.9.1",

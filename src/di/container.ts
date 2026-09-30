@@ -9,9 +9,8 @@
 import type { ActivePlanStore } from "@/application/ports/ActivePlanStore";
 import type { AuthService } from "@/application/ports/AuthService";
 import type { PlanRepository } from "@/application/ports/PlanRepository";
-import { FirebaseAuthService } from "@/infrastructure/firebase/FirebaseAuthService";
-import { getFirebaseAuth, getFirebaseFirestore, isFirebaseConfigured } from "@/infrastructure/firebase/firebaseApp";
-import { FirestorePlanRepository } from "@/infrastructure/firebase/FirestorePlanRepository";
+import { isFirebaseConfigured } from "@/infrastructure/firebase/firebaseConfig";
+import { LazyFirebaseAuthService, LazyFirestorePlanRepository } from "@/infrastructure/firebase/lazyFirebase";
 import { exportPlanToJson, importPlanFromJson } from "@/infrastructure/schemas/planJson";
 import {
   InMemoryActivePlanStore,
@@ -47,14 +46,15 @@ let authService: AuthService | null | undefined;
 /** ระบบล็อกอิน — คืน null ถ้าไม่ได้ตั้งค่า Firebase หรือรันนอกเบราว์เซอร์ */
 export function getAuthService(): AuthService | null {
   if (authService === undefined) {
-    authService = typeof window !== "undefined" && isFirebaseConfigured() ? new FirebaseAuthService(getFirebaseAuth()) : null;
+    // โหลดโค้ด Firebase แบบ lazy (ไม่รวมใน JS ก้อนแรก) — ดู lazyFirebase.ts
+    authService = typeof window !== "undefined" && isFirebaseConfigured() ? new LazyFirebaseAuthService() : null;
   }
   return authService;
 }
 
 /** ที่เก็บแผนบนคลาวด์ของผู้ใช้ uid */
 export function getCloudPlanRepository(uid: string): PlanRepository {
-  return new FirestorePlanRepository(getFirebaseFirestore(), uid);
+  return new LazyFirestorePlanRepository(uid);
 }
 
 /** รูปแบบไฟล์สำรองข้อมูล (JSON) — UI เรียกผ่านที่นี่ ไม่ import infrastructure ตรงๆ */

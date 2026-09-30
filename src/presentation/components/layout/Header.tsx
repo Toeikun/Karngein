@@ -24,9 +24,11 @@ export function Header({ status, offline = false, account }: HeaderProps) {
     <header className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-indigo-600 text-white shadow" aria-hidden>
-          <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 17c3-6 6-6 9-2s6 4 9-2" strokeLinecap="round" />
-            <path d="M3 7h6M15 7h6" strokeLinecap="round" />
+          {/* โลโก้: เงินหลายทางไหลมารวมกัน (เหมือนไอคอนแอปใน public/icons) */}
+          <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6c6 0 6 6 11 6h7" />
+            <path d="M3 18c6 0 6-6 11-6" />
+            <path d="m17.5 8.5 3.5 3.5-3.5 3.5" />
           </svg>
         </div>
         <div className="min-w-0">

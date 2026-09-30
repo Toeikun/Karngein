@@ -3,7 +3,8 @@
 /**
  * useAuth — สถานะการเข้าสู่ระบบ
  * - disabled : ไม่ได้ตั้งค่า Firebase → ใช้แบบ Guest อย่างเดียว
- * - loading  : กำลังตรวจว่าเคยล็อกอินค้างไว้ไหม
+ * - loading  : กำลังตรวจว่าเคยล็อกอินค้างไว้ไหม (เฉพาะเมื่อครั้งก่อนล็อกอินอยู่)
+ *              ถ้าครั้งก่อนไม่ได้ล็อกอิน → เริ่มเป็น signedOut ทันที หน้าเว็บขึ้นเร็ว ไม่ต้องรอโหลด Firebase
  * - signedOut / signedIn
  */
 import { useCallback, useEffect, useState } from "react";
@@ -14,7 +15,10 @@ export type AuthState =
   | { status: "signedIn"; user: AuthUser };
 
 export function useAuth(auth: AuthService | null) {
-  const [state, setState] = useState<AuthState>({ status: auth ? "loading" : "disabled", user: null });
+  const [state, setState] = useState<AuthState>(() => ({
+    status: !auth ? "disabled" : auth.probablySignedIn() ? "loading" : "signedOut",
+    user: null,
+  }));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

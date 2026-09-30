@@ -55,7 +55,7 @@ describe("CP-6: Sankey บนหน้าจอ", () => {
     expect(chart()).toHaveAttribute("width", "960");
     await user.click(screen.getByRole("button", { name: "ซูมเข้า" }));
     expect(chart()).toHaveAttribute("width", "1200");
-    await user.click(screen.getByRole("button", { name: "รีเซ็ตซูม" }));
+    await user.click(screen.getByRole("button", { name: /รีเซ็ตซูม/ }));
     await user.click(screen.getByRole("button", { name: "ซูมออก" }));
     expect(chart()).toHaveAttribute("width", "720");
   });

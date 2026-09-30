@@ -2,6 +2,7 @@
 #  - gate:     lint + typecheck + test + build (ชุดเดียวกับ npm run gate ในเครื่อง)
 #  - firebase: เทสต์ Firestore + Security Rules บน Firebase Emulator (ต้องใช้ Java — เครื่องของ GitHub มีให้)
 #              เครื่อง dev ไม่ได้ติดตั้ง Java จึงดูผลชุดนี้ที่นี่ (PLAN.md D8)
+#  - e2e:      Playwright เปิดเว็บจริงทดสอบทั้ง flow (มือถือ + เดสก์ท็อป) และการเปิดตอนออฟไลน์
 name: CI
 on:
   push:
@@ -27,3 +28,18 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
       - run: npm ci
       - run: npm run test:firebase
+
+  e2e:
+    # E2E ด้วย Playwright (มือถือ + เดสก์ท็อป) บนเว็บที่ build แล้ว — โหมด Guest (ไม่ใช้ Firebase จริง)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:e2e
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-traces, path: test-results, retention-days: 7 }

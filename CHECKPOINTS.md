@@ -14,7 +14,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 | CP-6 | Sankey ถูกต้อง | ✅ PASSED |
 | CP-7 | จัดการหลายแผนได้ | ✅ PASSED |
 | CP-8 | Login และ Sync ข้ามเครื่องได้ | ✅ PASSED (ข้อ 2 มือถือ → ตรวจใน CP-10) |
-| CP-9 | พร้อมใช้บนมือถือและคอมฯ | 🔒 |
+| CP-9 | พร้อมใช้บนมือถือและคอมฯ | ✅ PASSED (ติดตั้งบนมือถือจริง → ตรวจใน CP-10) |
 | CP-10 | ออนไลน์ | 🔒 |
 
 ---
@@ -242,3 +242,38 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 - ✅ ข้อ 4 ออกจากระบบ → กลับไปข้อมูลในเครื่อง ไม่เห็นข้อมูลคลาวด์
 - ⏭ ข้อ 2 (มือถือเห็นข้อมูลเดียวกับคอมฯ) → ย้ายไปตรวจใน CP-10 เพราะต้อง deploy ก่อน (ตกลงกับเจ้าของโปรเจกต์แล้ว)
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 9**
+
+## CP-9 พร้อมใช้บนมือถือและคอมฯ
+- วันที่: 2026-09-30
+- ผู้ตรวจ: Claude (รอเจ้าของโปรเจกต์ตรวจซ้ำ)
+- ไฟล์ที่สร้าง/แก้:
+  - PWA: `src/app/manifest.ts` (ใส่ basePath), `public/sw.js` (Service Worker), `presentation/components/ServiceWorkerRegistration.tsx`, `public/icons/*` (สร้างด้วย `scripts/generate-icons.mjs`), metadata iOS + theme-color ใน `app/layout.tsx`
+  - โลโก้ใหม่ "เงินหลายทางไหลมารวมกัน" (โลโก้เดิมดูเหมือนหน้าคนหน้าบึ้ง) ใช้ทั้ง Header และไอคอนแอป
+  - Performance: `infrastructure/firebase/firebaseConfig.ts` + `lazyFirebase.ts` (โหลด Firebase แบบ lazy), ป้าย "เคยล็อกอิน" (`probablySignedIn`) ให้ผู้ใช้ Guest ไม่ต้องรอ Firebase
+  - E2E: `playwright.config.ts`, `tests/e2e/main-flow.spec.ts`, `tests/e2e/pwa.spec.ts`, `scripts/serve-out.mjs` (เสิร์ฟ out/ + gzip แบบ GitHub Pages), `scripts/lighthouse.sh`
+  - CI: เพิ่ม job `e2e` ใน `.github/workflows/ci.yml`
+- Automated:
+  - ✅ `npm run gate` — test 244/244 (24 ไฟล์)
+  - ✅ E2E 8/8 (มือถือ Pixel 7 + เดสก์ท็อป) ทั้ง build แบบ Guest และแบบมี Firebase:
+    - flow หลัก: แม่แบบมนุษย์เงินเดือน (฿35,000 / ฿30,450) → เพิ่มรายจ่าย 1,000 (฿31,450) → รายปี 2027 (฿420,000 / ฿377,400) → รีโหลด → ข้อมูลยังอยู่
+    - ไม่มี scroll แนวนอน, ปุ่ม/ช่องกรอก ≥ 44px
+    - manifest ครบ (standalone, ไอคอน 192/512 เป็น PNG จริง)
+    - ปิดเน็ต (offline) แล้วรีโหลด → หน้าเว็บยังเปิดได้ และเห็นข้อมูลล่าสุด (฿69,666.67)
+  - 🧪 Mutation check: ปิดการลงทะเบียน Service Worker ชั่วคราว → เทสต์ออฟไลน์ล้ม → คืนค่า → ผ่าน 8/8
+  - ✅ Lighthouse มือถือ (build แบบมี Firebase, gzip): **Performance 86, Accessibility 100**, Best Practices 100, SEO 100 — วัด 3 รอบได้ค่าเดิม
+- Manual:
+  - ✅ build ด้วย basePath `/Karngein` → manifest, ไอคอน, apple-touch-icon, theme-color มี `/Karngein` ถูกต้อง
+  - ✅ dev server: โลโก้ใหม่, ปุ่มล็อกอิน, ไม่มี error ใน console, dev ไม่ลงทะเบียน Service Worker (ตั้งใจ)
+  - ⏭ ติดตั้งแอปบน Android / iPhone และเปิดจากไอคอนตอนออฟไลน์ → ตรวจใน CP-10 (ต้อง deploy ก่อน มือถือเปิด localhost ไม่ได้)
+- 🐞 ปัญหาที่เจอและแก้แล้ว:
+  1. Lighthouse Performance 75–82 (ต่ำกว่าเป้า 85): Firebase SDK ~1 MB อยู่ใน JS ก้อนแรกแม้ไม่ล็อกอิน (919 KB ไม่ถูกใช้) → โหลดแบบ lazy + ผู้ใช้ Guest ไม่ต้องรอ Firebase → 86
+  2. Accessibility: ตัวอักษรการ์ดสรุป (opacity 80%) และปุ่มป้ายที่ไม่ได้เลือกสีจางเกิน (contrast 3.55–4.43 < 4.5) → ปรับสีเข้มขึ้น
+  3. ปุ่มรีเซ็ตซูม: ตัวอักษรบนปุ่ม "100%" ไม่อยู่ในชื่อสำหรับ screen reader "รีเซ็ตซูม" → ชื่อเป็น "100% รีเซ็ตซูม"
+  4. `metadata.icons` ทับไอคอนอัตโนมัติจาก `app/icon.png` → กำหนดไอคอนแท็บใน metadata โดยตรง
+  5. โลโก้เดิมดูเหมือนหน้าคนหน้าบึ้ง → ออกแบบใหม่
+- หมายเหตุ:
+  - E2E ในเครื่องใช้ Chrome ที่มีอยู่แล้ว ไม่ดาวน์โหลดเบราว์เซอร์ของ Playwright (เครื่องบริษัท)
+  - Lighthouse รันด้วย `npx lighthouse@12` (อยู่ใน cache ของ npm ไม่ได้ติดตั้งลงระบบ)
+  - วัด Lighthouse ในเครื่อง — จะวัดซ้ำบนเว็บจริงใน CP-10
+  - ยังไม่ทำ toast แจ้งเตือน (ป้ายสถานะมุมบนแจ้ง "บันทึกแล้ว" อยู่แล้ว) → ไป Backlog
+- สถานะ: **PASSED → อนุญาตเริ่ม Phase 10 (Deploy)**

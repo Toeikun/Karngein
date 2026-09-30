@@ -17,8 +17,8 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 | CP-9 | พร้อมใช้บนมือถือและคอมฯ | ✅ PASSED (ติดตั้งบนมือถือจริง → ตรวจใน CP-10) |
 | CP-10 | ออนไลน์ | ✅ PASSED |
 | CP-11.1 | Domain: รอบเงินเดือน / รายการจริง / เป้าหมาย | ✅ PASSED |
-| CP-11.2 | เก็บข้อมูล + ไฟล์สำรอง v2 | ⏳ |
-| CP-11.3 | หน้า "บันทึกจริง" | 🔒 |
+| CP-11.2 | เก็บข้อมูล + ไฟล์สำรอง v2 | ✅ PASSED |
+| CP-11.3 | หน้า "บันทึกจริง" | ⏳ |
 | CP-11.4 | หน้า "เป้าหมาย" | 🔒 |
 | CP-11.5 | ขัดเกลา + deploy | 🔒 |
 
@@ -342,7 +342,7 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
 - Manual: n/a (Phase นี้ไม่มี UI)
 - สถานะ: **PASSED → อนุญาตเริ่ม Phase 11.2**
 
-## CP-11.2 เก็บข้อมูล + ไฟล์สำรอง v2 — ⏳ รอผล CI + Publish Rules
+## CP-11.2 เก็บข้อมูล + ไฟล์สำรอง v2
 - วันที่: 2026-09-30
 - ไฟล์ที่สร้าง/แก้:
   - Application: `ports/TransactionRepository.ts`, `usecases/transactions.ts`, `usecases/plans.ts` (ลบแผน → ลบรายการจริง), `usecases/migrateGuestPlans.ts` (ย้ายรายการจริงด้วย)
@@ -357,5 +357,8 @@ Gate มาตรฐาน: `npm run gate` (= lint + typecheck + test + build)
   - RTL: ส่งออก → ลบแผน → นำเข้า ได้แผน (+ เป้า + วันเริ่มรอบ 25) และรายการจริง 7 รายการกลับมา
 - Automated [CI] (branch `phase-11-2`, run 36670257005): ✅ gate / firebase / e2e ผ่าน, deploy ข้าม (ตั้งใจ — deploy เฉพาะ main)
   - contract test รายการจริงกับ Firestore Emulator + rules test รายการจริง (alice ได้ / bob ไม่ได้ / ไม่ล็อกอินไม่ได้) ผ่าน
-- ⏳ ก่อน merge เข้า main: เจ้าของโปรเจกต์ต้อง Publish `firestore.rules` ใหม่ใน Console (ไม่งั้นลบแผนตอนล็อกอินจะล้ม เพราะต้องลบรายการจริงใน sub-collection ที่กฎเดิมไม่อนุญาต)
+- ✅ เจ้าของโปรเจกต์ Publish `firestore.rules` ใหม่ใน Console แล้ว (ก่อน merge — ไม่งั้นลบแผนตอนล็อกอินจะล้ม เพราะต้องลบรายการจริงใน sub-collection ที่กฎเดิมไม่อนุญาต)
+- ✅ merge เข้า main → CI run 36670558187 เขียวทั้ง 4 job รวม deploy, เว็บจริงตอบ 200
 - การตัดสินใจ: `TransactionRepository.list` คืนทุกรายการของแผน (เป้าหมายต้องรวมทุกรอบ) แทน listByRange ในแผนเดิม — ง่ายกว่าและพอสำหรับการใช้ส่วนตัว
+- บทเรียน: ใช้ branch แยก (`phase-11-2`) เพื่อให้ CI ตรวจโดยยังไม่ deploy เมื่อการ deploy ต้องรอให้ตั้งค่าภายนอก (Rules) ก่อน
+- สถานะ: **PASSED → อนุญาตเริ่ม Phase 11.3**

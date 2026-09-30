@@ -2,7 +2,9 @@
  * Plan — แผนการเงิน 1 ชุด = รายได้ทั้งหมด + รายจ่ายทั้งหมด
  */
 import type { ExpenseGroup } from "./Expense";
+import type { Goal } from "./Goal";
 import type { Income } from "./Income";
+import { DEFAULT_PAY_CYCLE_START_DAY } from "./PayCycle";
 
 export interface Plan {
   id: string;
@@ -10,7 +12,16 @@ export interface Plan {
   incomes: Income[];
   expenses: ExpenseGroup[];
   updatedAt: string; // ISO เช่น "2027-01-01T00:00:00.000Z" — ใช้ตัดสินว่าข้อมูลไหนใหม่กว่าตอน sync
+  // ---- Phase 11 (ไม่บังคับ → แผนเก่าที่ไม่มี field เหล่านี้ยังใช้ได้) ----
+  payCycleStartDay?: number; // วันเริ่มรอบเงินเดือน 1–31 (ไม่มี = 1 = เดือนปฏิทิน)
+  goals?: Goal[];
 }
+
+/** วันเริ่มรอบเงินเดือนของแผน (แผนเก่าไม่มีค่า → 1) */
+export const payCycleStartDayOf = (plan: Plan): number => plan.payCycleStartDay ?? DEFAULT_PAY_CYCLE_START_DAY;
+
+/** เป้าหมายของแผน (แผนเก่าไม่มี → []) */
+export const goalsOf = (plan: Plan): Goal[] => plan.goals ?? [];
 
 export interface CreatePlanParams {
   id: string;

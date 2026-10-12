@@ -43,6 +43,19 @@ const goalSchema = z.object({
   deadline: dateSchema.optional(),
 });
 
+const daySchema = z.number().int().min(1).max(31);
+
+const walletSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  kind: z.enum(["cash", "bank", "ewallet", "credit"]),
+  openingBalance: amountSchema,
+  creditLimit: z.number().positive().optional(),
+  statementDay: daySchema.optional(),
+  dueDay: daySchema.optional(),
+  archived: z.boolean().optional(),
+});
+
 // ⚠️ z.object ตัด field ที่ไม่ได้ประกาศทิ้ง — เพิ่ม field ใหม่ให้ Plan เมื่อไหร่ ต้องเพิ่มที่นี่ด้วย
 // ไม่งั้นข้อมูลจะหายเงียบๆ ตอนอ่านกลับ (มีเทสต์กันไว้ใน planJson.test.ts)
 export const planSchema = z.object({
@@ -52,14 +65,16 @@ export const planSchema = z.object({
   expenses: z.array(expenseGroupSchema),
   updatedAt: z.iso.datetime(),
   // Phase 11 — ไม่บังคับ (แผนเก่าไม่มี)
-  payCycleStartDay: z.number().int().min(1).max(31).optional(),
+  payCycleStartDay: daySchema.optional(),
   goals: z.array(goalSchema).optional(),
+  // Phase 12.2 — ไม่บังคับ
+  wallets: z.array(walletSchema).optional(),
 });
 
 export const transactionSchema = z.object({
   id: z.string().min(1),
   date: dateSchema,
-  type: z.enum(["income", "expense"]),
+  type: z.enum(["income", "expense", "transfer"]),
   amount: z.number().positive(),
   merchant: z.string().optional(),
   note: z.string().optional(),
@@ -67,6 +82,8 @@ export const transactionSchema = z.object({
   planGroupId: z.string().optional(),
   planIncomeId: z.string().optional(),
   goalId: z.string().optional(),
+  walletId: z.string().optional(), // Phase 12.2
+  toWalletId: z.string().optional(),
 });
 
 /** ตรวจว่าเป็น Transaction ที่ถูกต้อง — คืน Transaction หรือ null */

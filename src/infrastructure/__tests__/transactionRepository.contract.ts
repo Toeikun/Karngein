@@ -41,6 +41,14 @@ export function describeTransactionRepositoryContract(
       ]);
     });
 
+    it("Phase 12.2: รายการโอน + walletId/toWalletId ไม่ถูกตัดทิ้ง", async () => {
+      const transfer: Transaction = { id: "t3", date: "2026-10-28", type: "transfer", amount: 1000, walletId: "w-bank", toWalletId: "w-card", note: "จ่ายบัตร" };
+      const expense: Transaction = { ...tx("t4"), walletId: "w-card" };
+      await repo.save("plan-a", transfer);
+      await repo.save("plan-a", expense);
+      expect(byId(await repo.list("plan-a"))).toEqual([transfer, expense]);
+    });
+
     it("save id เดิม → เขียนทับ ไม่เพิ่มรายการ", async () => {
       await repo.save("plan-a", tx("t1", 100));
       await repo.save("plan-a", tx("t1", 999));

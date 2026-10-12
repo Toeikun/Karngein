@@ -7,15 +7,19 @@
  * - เดากลุ่ม/หมวดจากที่เคยจด (Domain: guessCategory) — ถ้าผู้ใช้เลือกเองแล้วจะไม่เดาทับ
  * - ผูกกับกลุ่มในแผน → หมวดตามกลุ่ม / เลือกเป้าหมาย → หมวดตามเป้า / ไม่ผูก → เลือกหมวดเอง
  * - withKeypad: แสดงแป้นตัวเลขในแอป (ใช้ในหน้าต่าง "ลงรายการเร็ว")
+ * - Phase 12.2: เลือกกระเป๋า (ค่าเริ่มต้น = ที่ใช้ล่าสุด) และ "โอน" ระหว่างกระเป๋า (ไม่ใช่รับ/จ่าย — R25)
+ *   preset: ค่าตั้งต้นจากปุ่มลัด เช่น "จ่ายบัตร" = โอนจากบัญชี → บัตร พร้อมยอด
  */
 import { useId, useState } from "react";
 import { CATEGORIES, type CategoryId } from "@/domain/entities/Category";
 import { formatBaht } from "@/domain/entities/Money";
-import type { Plan } from "@/domain/entities/Plan";
+import { walletsOf, type Plan } from "@/domain/entities/Plan";
 import type { Transaction, TransactionInput, TransactionType } from "@/domain/entities/Transaction";
 import type { ValidationError } from "@/domain/entities/validation";
 import { evaluateAmount } from "@/domain/services/amountExpression";
+import { WALLET_KINDS, type Wallet } from "@/domain/entities/Wallet";
 import { guessCategory, type GuessSource } from "@/domain/services/categoryGuess";
+import { lastUsedWalletId } from "@/domain/services/walletBalances";
 import { formatAmountInput } from "../../utils/parseAmount";
 import { AmountKeypad } from "./AmountKeypad";
 
@@ -29,6 +33,7 @@ interface TransactionFormProps {
   onSaved?: () => void;
   withKeypad?: boolean;
   title?: string;
+  preset?: Partial<TransactionInput>;
 }
 
 const field = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
@@ -40,18 +45,32 @@ const GUESS_LABEL: Record<GuessSource, string> = {
   groupName: "ชื่อกลุ่มในแผน",
 };
 
-function initialState(editing: Transaction | null, today: string) {
+function initialState(editing: Transaction | null, today: string, preset: Partial<TransactionInput>, defaultWalletId: string) {
+  const amount = editing?.amount ?? preset.amount;
   return {
-    type: (editing?.type ?? "expense") as TransactionType,
-    amountText: editing ? formatAmountInput(editing.amount) : "",
+    type: (editing?.type ?? preset.type ?? "expense") as TransactionType,
+    amountText: amount ? formatAmountInput(amount) : "",
     date: editing?.date ?? today,
     merchant: editing?.merchant ?? "",
     groupId: editing?.planGroupId ?? "",
     category: (editing?.category ?? "essential") as CategoryId,
     incomeId: editing?.planIncomeId ?? "",
     goalId: editing?.goalId ?? "",
-    note: editing?.note ?? "",
+    note: editing?.note ?? preset.note ?? "",
+    walletId: editing ? (editing.walletId ?? "") : (preset.walletId ?? defaultWalletId),
+    toWalletId: editing?.toWalletId ?? preset.toWalletId ?? "",
   };
+}
+
+/** ตัวเลือกกระเป๋า: ใบที่ไม่ได้ซ่อน + ใบที่รายการนี้ใช้อยู่ (แม้ถูกซ่อนแล้ว) */
+function walletOptions(wallets: Wallet[], ...selected: string[]) {
+  return wallets
+    .filter((w) => !w.archived || selected.includes(w.id))
+    .map((w) => (
+      <option key={w.id} value={w.id}>
+        {WALLET_KINDS.find((k) => k.id === w.kind)?.icon} {w.name}
+      </option>
+    ));
 }
 
 export function TransactionForm({
@@ -64,8 +83,10 @@ export function TransactionForm({
   onSaved,
   withKeypad = false,
   title,
+  preset = {},
 }: TransactionFormProps) {
-  const [form, setForm] = useState(() => initialState(editing, today));
+  const wallets = walletsOf(plan);
+  const [form, setForm] = useState(() => initialState(editing, today, preset, lastUsedWalletId(plan, history) ?? ""));
   const [pickedByUser, setPickedByUser] = useState(Boolean(editing)); // เลือกกลุ่ม/หมวดเองแล้ว → ไม่เดาทับ
   const [guessSource, setGuessSource] = useState<GuessSource | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -111,26 +132,32 @@ export function TransactionForm({
     }
     const note = form.note.trim() || undefined;
     const merchant = form.merchant.trim() || undefined;
-    const input: TransactionInput =
-      form.type === "income"
-        ? { type: "income", date: form.date, amount: parsed.value, merchant, note, planIncomeId: form.incomeId || undefined }
-        : {
-            type: "expense",
-            date: form.date,
-            amount: parsed.value,
-            merchant,
-            note,
-            category: categoryFromLink ?? form.category,
-            planGroupId: form.groupId || undefined,
-            goalId: form.goalId || undefined,
-          };
+    const walletId = form.walletId || undefined;
+    let input: TransactionInput;
+    if (form.type === "transfer") {
+      input = { type: "transfer", date: form.date, amount: parsed.value, note, walletId, toWalletId: form.toWalletId || undefined };
+    } else if (form.type === "income") {
+      input = { type: "income", date: form.date, amount: parsed.value, merchant, note, walletId, planIncomeId: form.incomeId || undefined };
+    } else {
+      input = {
+        type: "expense",
+        date: form.date,
+        amount: parsed.value,
+        merchant,
+        note,
+        walletId,
+        category: categoryFromLink ?? form.category,
+        planGroupId: form.groupId || undefined,
+        goalId: form.goalId || undefined,
+      };
+    }
     setSaving(true);
     const result = await onSubmit(input);
     setSaving(false);
     setErrors(Object.fromEntries(result.map((e) => [e.field, e.message])));
     if (result.length === 0) {
       setSaved(true);
-      // ลงรายการถัดไปได้ทันที: ล้างจำนวน/ร้าน/โน้ต แต่คงวันที่และประเภทไว้
+      // ลงรายการถัดไปได้ทันที: ล้างจำนวน/ร้าน/โน้ต แต่คงวันที่ ประเภท และกระเป๋าไว้
       setForm((f) => ({ ...f, amountText: "", merchant: "", note: "" }));
       setPickedByUser(false);
       setGuessSource(null);
@@ -158,6 +185,7 @@ export function TransactionForm({
       <div role="group" aria-label="ประเภทรายการ" className="flex gap-2">
         {typeButton("expense", "รายจ่าย", "bg-rose-600 text-white")}
         {typeButton("income", "รายรับ", "bg-emerald-600 text-white")}
+        {(wallets.length >= 2 || form.type === "transfer") && typeButton("transfer", "โอน", "bg-slate-700 text-white")}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -200,6 +228,38 @@ export function TransactionForm({
 
       {withKeypad && <AmountKeypad value={form.amountText} onChange={(v) => set("amountText", v)} />}
 
+      {form.type === "transfer" ? (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <select aria-label="โอนจากกระเป๋า" value={form.walletId} onChange={(e) => set("walletId", e.target.value)} className={field}>
+            <option value="">— จาก —</option>
+            {walletOptions(wallets, form.walletId)}
+          </select>
+          <span aria-hidden className="text-slate-400">
+            →
+          </span>
+          <select aria-label="โอนเข้ากระเป๋า" value={form.toWalletId} onChange={(e) => set("toWalletId", e.target.value)} className={field}>
+            <option value="">— ไป —</option>
+            {walletOptions(wallets, form.toWalletId)}
+          </select>
+          {(errors.walletId || errors.toWalletId) && (
+            <p role="alert" className="col-span-3 text-xs text-red-600">
+              {errors.walletId ?? errors.toWalletId}
+            </p>
+          )}
+        </div>
+      ) : (
+        wallets.length > 0 && (
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <span className="shrink-0">{form.type === "income" ? "เข้ากระเป๋า" : "จ่ายจาก"}</span>
+            <select aria-label="กระเป๋าเงิน" value={form.walletId} onChange={(e) => set("walletId", e.target.value)} className={field}>
+              <option value="">— ไม่ระบุ —</option>
+              {walletOptions(wallets, form.walletId)}
+            </select>
+          </label>
+        )
+      )}
+
+      {form.type !== "transfer" && (
       <input
         aria-label={form.type === "income" ? "ผู้จ่าย / แหล่งที่มา" : "ร้าน / ผู้รับ"}
         placeholder={form.type === "income" ? "ผู้จ่าย / แหล่งที่มา (ไม่บังคับ)" : "ร้าน / ผู้รับ (ไม่บังคับ) เช่น ร้านข้าวมันไก่"}
@@ -207,6 +267,7 @@ export function TransactionForm({
         onChange={(e) => updateText("merchant", e.target.value)}
         className={field}
       />
+      )}
 
       {form.type === "expense" ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -245,7 +306,7 @@ export function TransactionForm({
             </select>
           )}
         </div>
-      ) : (
+      ) : form.type === "income" && (
         <select aria-label="ผูกกับรายได้ในแผน" value={form.incomeId} onChange={(e) => set("incomeId", e.target.value)} className={field}>
           <option value="">— ไม่ผูกกับรายได้ในแผน —</option>
           {plan.incomes.map((i) => (

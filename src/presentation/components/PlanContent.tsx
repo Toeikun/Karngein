@@ -4,13 +4,14 @@
  * PlanContent — เนื้อหาของแผนที่เปิดอยู่ (ใส่ key={plan.id} → สลับแผนแล้วเริ่มใหม่ทั้งหมด)
  *
  * เป็น "ศูนย์กลางข้อมูลรายการจริง": โหลดรายการครั้งเดียว (useTransactions) แล้วส่งให้
- *   แท็บรายการ · แท็บเป้าหมาย · ปุ่ม + ลงรายการเร็ว  → ข้อมูลชุดเดียวกัน ไม่เพี้ยนกัน
+ *   แท็บรายการ · แท็บกระเป๋า · แท็บเป้าหมาย · ปุ่ม + ลงรายการเร็ว  → ข้อมูลชุดเดียวกัน ไม่เพี้ยนกัน
  */
 import { useEffect, useState } from "react";
 import type { UseCaseContext } from "@/application/context";
 import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import type { Period } from "@/domain/entities/Period";
 import type { Plan } from "@/domain/entities/Plan";
+import type { TransactionInput } from "@/domain/entities/Transaction";
 import type { PlanSummary } from "@/domain/services/summarize";
 import type { RunUseCase } from "../hooks/usePlan";
 import { useTransactions } from "../hooks/useTransactions";
@@ -25,8 +26,9 @@ import { PeriodSwitcher } from "./period/PeriodSwitcher";
 import { PresetBar } from "./preset/PresetBar";
 import { SummaryCards } from "./summary/SummaryCards";
 import { LoadingState } from "./ui/LoadingState";
+import { WalletsView } from "./wallets/WalletsView";
 
-export type WorkspaceTab = "actual" | "goals" | "plan" | "more";
+export type WorkspaceTab = "actual" | "wallets" | "goals" | "plan" | "more";
 
 interface PlanContentProps {
   plan: Plan;
@@ -42,7 +44,8 @@ interface PlanContentProps {
 
 export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChange, summary, transactionRepository, ctx }: PlanContentProps) {
   const tx = useTransactions(transactionRepository, plan.id, ctx);
-  const [quickAdd, setQuickAdd] = useState(false);
+  // null = ปิด / {} = ลงรายการใหม่ / มีค่า = เปิดพร้อมค่าตั้งต้น (เช่น "จ่ายบัตร")
+  const [quickAdd, setQuickAdd] = useState<Partial<TransactionInput> | null>(null);
   const today = todayIso(ctx.now());
 
   // แท็บ "เพิ่มเติม" มีแค่บนมือถือ — ขยายหน้าจอเป็นคอมฯ ระหว่างอยู่แท็บนี้ → กลับไปหน้ารายการ
@@ -55,10 +58,10 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
     return () => desktop.removeEventListener("change", leave);
   }, [tab, onTabChange]);
 
-  const needsTransactions = tab === "actual" || tab === "goals";
+  const needsTransactions = tab === "actual" || tab === "wallets" || tab === "goals";
   let body;
   if (tab === "more") {
-    body = <MoreView />;
+    body = <MoreView onOpen={onTabChange} />;
   } else if (tab === "plan") {
     body = (
       <>
@@ -81,7 +84,9 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
       </p>
     );
   } else if (tab === "actual") {
-    body = <ActualView plan={plan} run={run} today={today} tx={tx} />;
+    body = <ActualView plan={plan} run={run} today={today} tx={tx} onQuickAdd={setQuickAdd} />;
+  } else if (tab === "wallets") {
+    body = <WalletsView plan={plan} run={run} today={today} tx={tx} onQuickAdd={setQuickAdd} />;
   } else {
     body = <GoalsView plan={plan} run={run} today={today} tx={tx} />;
   }
@@ -89,20 +94,23 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
   return (
     <>
       {/* อยู่ก่อนเนื้อหา: คอมฯ = แถบแท็บด้านบน / มือถือ = fixed ติดล่างจอ (ลำดับใน DOM ไม่มีผล) */}
-      <BottomNav tab={tab} onChange={onTabChange} onAdd={() => setQuickAdd(true)} addDisabled={tx.loading && needsTransactions} />
+      <BottomNav tab={tab} onChange={onTabChange} onAdd={() => setQuickAdd({})} addDisabled={tx.loading && needsTransactions} />
       {body}
       {quickAdd && (
-        <QuickAddSheet plan={plan} today={today} history={tx.transactions} onSubmit={tx.add} onClose={() => setQuickAdd(false)} />
+        <QuickAddSheet plan={plan} today={today} history={tx.transactions} preset={quickAdd} onSubmit={tx.add} onClose={() => setQuickAdd(null)} />
       )}
     </>
   );
 }
 
-const TABS: { id: WorkspaceTab; label: string; icon: string; order: string; mobileOnly?: boolean }[] = [
+// มือถือ: รายการ · กระเป๋า · [+] · วางแผน · เพิ่มเติม (เป้าหมายอยู่ใน "เพิ่มเติม" — D22)
+// คอมฯ: รายการ · กระเป๋า · เป้าหมาย · วางแผน · [+ ลงรายการ]
+const TABS: { id: WorkspaceTab; label: string; icon: string; order: string; only?: "mobile" | "desktop" }[] = [
   { id: "actual", label: "รายการ", icon: "🧾", order: "order-1" },
-  { id: "goals", label: "เป้าหมาย", icon: "🎯", order: "order-2" },
+  { id: "wallets", label: "กระเป๋า", icon: "👛", order: "order-2" },
+  { id: "goals", label: "เป้าหมาย", icon: "🎯", order: "order-3", only: "desktop" },
   { id: "plan", label: "วางแผน", icon: "🗺️", order: "order-4" },
-  { id: "more", label: "เพิ่มเติม", icon: "⋯", order: "order-5", mobileOnly: true },
+  { id: "more", label: "เพิ่มเติม", icon: "⋯", order: "order-5", only: "mobile" },
 ];
 
 /**
@@ -128,11 +136,11 @@ function BottomNav({ tab, onChange, onAdd, addDisabled }: { tab: WorkspaceTab; o
               onChange(t.id);
               window.scrollTo({ top: 0 });
             }}
-            className={`${t.order} ${t.mobileOnly ? "lg:hidden" : ""} flex min-h-14 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
-              tab === t.id ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
+            className={`${t.order} ${t.only === "mobile" ? "lg:hidden" : t.only === "desktop" ? "max-lg:hidden" : ""} flex min-h-14 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
+              tab === t.id || (t.id === "more" && tab === "goals") ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
             }`}
           >
-            <span aria-hidden className={`grid h-7 w-12 place-items-center rounded-full text-lg lg:h-auto lg:w-auto lg:text-base ${tab === t.id ? "bg-indigo-100 lg:bg-transparent" : ""}`}>
+            <span aria-hidden className={`grid h-7 w-12 place-items-center rounded-full text-lg lg:h-auto lg:w-auto lg:text-base ${tab === t.id || (t.id === "more" && tab === "goals") ? "bg-indigo-100 lg:bg-transparent" : ""}`}>
               {t.icon}
             </span>
             {t.label}
@@ -155,13 +163,27 @@ function BottomNav({ tab, onChange, onAdd, addDisabled }: { tab: WorkspaceTab; o
   );
 }
 
-/** แท็บ "เพิ่มเติม" (มือถือ): จัดการแผนแสดงอยู่ด้านบน (PlanWorkspace) + คำแนะนำสั้นๆ */
-function MoreView() {
+/** แท็บ "เพิ่มเติม" (มือถือ): ทางไปเป้าหมาย + จัดการแผน (การ์ดจัดการแผนแสดงด้านบนโดย PlanWorkspace) */
+function MoreView({ onOpen }: { onOpen: (tab: WorkspaceTab) => void }) {
   return (
-    <section aria-labelledby="more-heading" className="space-y-2 rounded-3xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-100">
+    <section aria-labelledby="more-heading" className="space-y-3 rounded-3xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-100">
       <h2 id="more-heading" className="text-base font-semibold text-slate-800">
         เพิ่มเติม
       </h2>
+      <button
+        type="button"
+        onClick={() => onOpen("goals")}
+        className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-indigo-50 px-4 text-left font-medium text-indigo-800 hover:bg-indigo-100"
+      >
+        <span aria-hidden className="text-2xl">
+          🎯
+        </span>
+        <span className="flex-1">
+          เป้าหมาย
+          <span className="block text-xs font-normal text-indigo-600">เงินออมฉุกเฉิน · เที่ยว · ดาวน์บ้าน</span>
+        </span>
+        <span aria-hidden>›</span>
+      </button>
       <p>สลับแผน · สร้างแผนใหม่ · นำเข้า/ส่งออกไฟล์สำรอง · ลบแผน — อยู่ในการ์ดด้านบน</p>
       <p>เข้าสู่ระบบ Google (มุมขวาบน) เพื่อซิงก์ข้อมูลระหว่างมือถือกับคอมฯ</p>
     </section>

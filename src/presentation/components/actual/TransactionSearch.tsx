@@ -44,6 +44,7 @@ export function TransactionSearch({ query, onChange }: TransactionSearchProps) {
             <option value="all">ทุกประเภท</option>
             <option value="expense">รายจ่าย</option>
             <option value="income">รายรับ</option>
+            <option value="transfer">โอน</option>
           </select>
           <select aria-label="กรองหมวด" value={query.category ?? "all"} onChange={(e) => onChange({ ...query, category: e.target.value as CategoryId | "all" })} className={field}>
             <option value="all">ทุกหมวด</option>

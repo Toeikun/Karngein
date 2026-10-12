@@ -30,8 +30,14 @@ export const CATEGORY_ICONS: Record<CategoryId, string> = {
   reward: "🎁",
 };
 
+const walletName = (plan: Plan, id?: string) => plan.wallets?.find((w) => w.id === id)?.name;
+
+/** โอน: "A → B" (กระเป๋าที่ถูกลบไปแล้วแสดง "?") */
+const transferRoute = (t: Transaction, plan: Plan) => `${walletName(plan, t.walletId) ?? "?"} → ${walletName(plan, t.toWalletId) ?? "?"}`;
+
 /** ชื่อที่ผูกในแผน: กลุ่มรายจ่าย/รายได้ > ชื่อหมวด */
 function linkedName(t: Transaction, plan: Plan): string {
+  if (t.type === "transfer") return `โอน ${transferRoute(t, plan)}`;
   if (t.type === "income") return plan.incomes.find((i) => i.id === t.planIncomeId)?.name ?? "รายรับ";
   return plan.expenses.find((g) => g.id === t.planGroupId)?.name ?? CATEGORIES.find((c) => c.id === t.category)?.label ?? "รายจ่าย";
 }
@@ -71,10 +77,13 @@ export function TransactionList({ plan, transactions, today, title, emptyMessage
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-100">
               {day.transactions.map((t) => {
                 const income = t.type === "income";
+                const transfer = t.type === "transfer";
                 const label = labelOf(t, plan);
                 const linked = linkedName(t, plan);
-                const detail = [linked !== label ? linked : null, t.merchant && t.note ? t.note : null].filter(Boolean).join(" · ");
-                const tint = income ? "bg-emerald-100" : t.category ? CATEGORY_STYLES[t.category].badge : "bg-slate-100";
+                const wallet = transfer ? null : walletName(plan, t.walletId);
+                const detail = [linked !== label ? linked : null, wallet, t.merchant && t.note ? t.note : null].filter(Boolean).join(" · ");
+                const tint = transfer ? "bg-slate-100" : income ? "bg-emerald-100" : t.category ? CATEGORY_STYLES[t.category].badge : "bg-slate-100";
+                const icon = transfer ? "🔁" : income ? "💰" : t.category ? CATEGORY_ICONS[t.category] : "🧾";
                 return (
                   <li key={t.id} data-testid={`tx-${t.id}`}>
                     <button
@@ -84,14 +93,15 @@ export function TransactionList({ plan, transactions, today, title, emptyMessage
                       className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50"
                     >
                       <span className={`grid size-10 shrink-0 place-items-center rounded-full text-lg ${tint}`} aria-hidden>
-                        {income ? "💰" : t.category ? CATEGORY_ICONS[t.category] : "🧾"}
+                        {icon}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-slate-800">{label}</span>
                         {detail && <span className="block truncate text-xs text-slate-500">{detail}</span>}
                       </span>
-                      <span className={`shrink-0 font-semibold tabular-nums ${income ? "text-emerald-700" : "text-rose-700"}`}>
-                        {income ? "+" : "−"}
+                      {/* โอนไม่ใช่รับ/จ่าย (R25) → สีกลาง ไม่มี +/− */}
+                      <span className={`shrink-0 font-semibold tabular-nums ${transfer ? "text-slate-600" : income ? "text-emerald-700" : "text-rose-700"}`}>
+                        {transfer ? "" : income ? "+" : "−"}
                         {formatBaht(t.amount)}
                       </span>
                     </button>

@@ -16,12 +16,13 @@ interface QuickAddSheetProps {
   today: string;
   history: Transaction[];
   editing?: Transaction | null;
+  preset?: Partial<TransactionInput>; // ค่าตั้งต้นจากปุ่มลัด เช่น "จ่ายบัตร"
   onSubmit: (input: TransactionInput) => Promise<ValidationError[]>;
   onDelete?: (transaction: Transaction) => void;
   onClose: () => void;
 }
 
-export function QuickAddSheet({ plan, today, history, editing = null, onSubmit, onDelete, onClose }: QuickAddSheetProps) {
+export function QuickAddSheet({ plan, today, history, editing = null, preset, onSubmit, onDelete, onClose }: QuickAddSheetProps) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -61,6 +62,7 @@ export function QuickAddSheet({ plan, today, history, editing = null, onSubmit, 
           history={history}
           withKeypad
           title={title}
+          preset={preset}
           onSubmit={onSubmit}
           onSaved={onClose}
           onCancelEdit={onClose}

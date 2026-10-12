@@ -12,10 +12,11 @@ import { setPayCycleStartDay } from "@/application/usecases/plans";
 import { formatBaht } from "@/domain/entities/Money";
 import { cycleContaining, daysLeftInCycle, shiftCycle } from "@/domain/entities/PayCycle";
 import { payCycleStartDayOf, type Plan } from "@/domain/entities/Plan";
-import type { Transaction } from "@/domain/entities/Transaction";
+import type { Transaction, TransactionInput } from "@/domain/entities/Transaction";
 import { compareWithBudget, summarizeCycle, transactionsInCycle } from "@/domain/services/cycleSummary";
 import { budgetPace } from "@/domain/services/dailyView";
 import { isEmptyQuery, searchTransactions, type TransactionQuery } from "@/domain/services/searchTransactions";
+import { dueAlerts } from "@/domain/services/walletBalances";
 import type { RunUseCase } from "../../hooks/usePlan";
 import type { TransactionsState } from "../../hooks/useTransactions";
 import { ActualFlowSection } from "./ActualFlowSection";
@@ -25,15 +26,18 @@ import { CycleSettings } from "./CycleSettings";
 import { QuickAddSheet } from "./QuickAddSheet";
 import { TransactionList } from "./TransactionList";
 import { TransactionSearch } from "./TransactionSearch";
+import { DueAlerts } from "../wallets/DueAlerts";
+import { payCardPreset } from "../wallets/WalletsView";
 
 interface ActualViewProps {
   plan: Plan;
   run: RunUseCase;
   today: string;
   tx: TransactionsState;
+  onQuickAdd: (preset: Partial<TransactionInput>) => void;
 }
 
-export function ActualView({ plan, run, today, tx }: ActualViewProps) {
+export function ActualView({ plan, run, today, tx, onQuickAdd }: ActualViewProps) {
   const { transactions, update, remove } = tx;
   const [offset, setOffset] = useState(0); // 0 = รอบปัจจุบัน, -1 = รอบก่อน, …
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -55,6 +59,8 @@ export function ActualView({ plan, run, today, tx }: ActualViewProps) {
   // โครงเดียวทั้งตอนค้นหาและตอนดูรอบ → ช่องค้นหาอยู่ตำแหน่งเดิมเสมอ (ไม่ถูกสร้างใหม่ → พิมพ์ต่อได้ไม่หลุดโฟกัส)
   return (
     <div className="space-y-5">
+      {/* บัตรเครดิตใกล้/เกินกำหนดชำระ (R28) — เห็นทันทีที่เปิดแอป */}
+      <DueAlerts alerts={dueAlerts(plan, transactions, today)} onPay={(a) => onQuickAdd(payCardPreset(plan, a.wallet, a.statement.remaining))} />
       {/* มือถือ: การ์ด → ค้นหา + รายการ → เทียบงบ / คอมฯ: ซ้าย = การ์ด + เทียบงบ, ขวา = ค้นหา + รายการ */}
       <div className="grid gap-5 lg:grid-cols-[2fr_3fr] lg:items-start">
         <div className={searching ? "hidden" : ""}>

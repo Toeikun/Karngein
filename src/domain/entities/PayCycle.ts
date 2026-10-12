@@ -67,6 +67,17 @@ function startDateIn(year: number, month: number, startDay: number): string {
   return format({ year, month, day: Math.min(startDay, daysInMonth(year, month)) });
 }
 
+/** วันที่ day ของเดือน (year, month) — เดือนที่สั้นกว่าใช้วันสุดท้าย (R14) */
+export function clampedDate(year: number, month: number, day: number): string {
+  return format({ year, month, day: Math.min(day, daysInMonth(year, month)) });
+}
+
+/** ปี/เดือนของวันที่ + เลื่อนเดือน (ใช้กับรอบบิลบัตรเครดิต R27) */
+export function monthOf(date: string, delta = 0): { year: number; month: number } {
+  const { year, month } = parse(date);
+  return shiftMonth(year, month, delta);
+}
+
 // ---------- รอบเงินเดือน ----------
 
 /** รอบที่เริ่มในเดือน (year, month) */

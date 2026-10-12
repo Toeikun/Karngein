@@ -8,6 +8,18 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   error: "บันทึกไม่สำเร็จ",
 };
 
+/**
+ * ไอคอนแทนข้อความบนมือถือ (จอแคบ ข้อความยาวจะดันชื่อแอปจนถูกทับ)
+ * ใช้ ::before → ไม่ปนกับข้อความจริง (textContent ยังเป็นข้อความเต็ม — โปรแกรมอ่านหน้าจอ/เทสต์ใช้ได้)
+ */
+const STATUS_ICON: Record<SaveStatus | "offline", string> = {
+  loading: "max-sm:before:content-['⋯']",
+  saving: "max-sm:before:content-['⋯']",
+  saved: "max-sm:before:content-['✓']",
+  error: "max-sm:before:content-['!']",
+  offline: "max-sm:before:content-['📴']",
+};
+
 interface HeaderProps {
   status: SaveStatus;
   /** โหมดคลาวด์ + ออฟไลน์ → แจ้งว่าบันทึกในเครื่องไว้ก่อน */
@@ -32,13 +44,18 @@ export function Header({ status, offline = false, account }: HeaderProps) {
           </svg>
         </div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-indigo-700 sm:text-2xl">Karngein</h1>
+          <h1 className="truncate text-xl font-bold text-indigo-700 sm:text-2xl">Karngein</h1>
           <p className="hidden text-sm text-slate-500 sm:block">วางแผนรายได้-รายจ่าย เห็นภาพการเงินทั้งหมด</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <span role="status" aria-label="สถานะการบันทึก" className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs ${tone}`}>
-          {text}
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          role="status"
+          aria-label="สถานะการบันทึก"
+          title={text}
+          className={`grid shrink-0 place-items-center whitespace-nowrap rounded-full text-xs max-sm:size-8 max-sm:text-sm sm:px-3 sm:py-1 ${tone} ${STATUS_ICON[offline && status !== "error" ? "offline" : status]}`}
+        >
+          <span className="max-sm:sr-only">{text}</span>
         </span>
         {account}
       </div>

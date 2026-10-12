@@ -70,6 +70,24 @@ describe("Phase 11 — schema และไฟล์สำรองเวอร�
     expect(parsePlan({ ...goldenPlan3, payCycleStartDay: day })).toBeNull();
   });
 
+  it("⚠️ Phase 12.2: กระเป๋า (รวมบัตรเครดิต/ซ่อน) + รายการโอน ผ่าน schema และไฟล์สำรองโดยไม่หาย", () => {
+    const plan = {
+      ...goldenPlan3,
+      wallets: [
+        { id: "w-bank", name: "KBank", kind: "bank" as const, openingBalance: 20000 },
+        { id: "w-card", name: "บัตร", kind: "credit" as const, openingBalance: 0, creditLimit: 50000, statementDay: 25, dueDay: 10, archived: true },
+      ],
+    };
+    const transfer = { id: "tx-t", date: "2026-10-28", type: "transfer" as const, amount: 1000, walletId: "w-bank", toWalletId: "w-card" };
+    expect(parsePlan(plan)).toEqual(plan);
+    expect(importPlanFromJson(exportPlanToJson(plan, [...goldenTransactions3, transfer]))).toEqual({
+      ok: true,
+      plan,
+      transactions: [...goldenTransactions3, transfer],
+    });
+    expect(parsePlan({ ...plan, wallets: [{ ...plan.wallets[0], kind: "crypto" }] })).toBeNull();
+  });
+
   it("export v2 → import → ได้แผน + รายการจริงครบ", () => {
     const result = importPlanFromJson(exportPlanToJson(goldenPlan3, goldenTransactions3));
     expect(result).toEqual({ ok: true, plan: goldenPlan3, transactions: goldenTransactions3 });

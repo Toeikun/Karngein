@@ -1,11 +1,21 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** คอมฯ: แท็บเป้าหมาย / มือถือ: อยู่ใน "เพิ่มเติม" (D22) */
+async function openGoals(page: Page) {
+  const tab = page.getByRole("tab", { name: "เป้าหมาย" });
+  if (await tab.isVisible()) await tab.click();
+  else {
+    await page.getByRole("tab", { name: "เพิ่มเติม" }).click();
+    await page.getByRole("button", { name: /เป้าหมาย/ }).click();
+  }
+}
 
 test("เป้าหมาย: เงินเดือน × 12 → ลงเงินออมเข้าเป้า → ความคืบหน้าเพิ่ม → รีโหลดแล้วยังอยู่", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ — แม่แบบอยู่แท็บวางแผน
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click(); // เงินเดือน 30,000
 
-  await page.getByRole("tab", { name: "เป้าหมาย" }).click();
+  await openGoals(page);
   await page.getByRole("button", { name: "+ ตั้งเป้าหมายใหม่" }).click();
   const form = page.getByRole("form", { name: "ตั้งเป้าหมายใหม่" });
   await form.getByLabel("ชื่อเป้าหมาย").fill("เงินออมฉุกเฉิน");
@@ -32,6 +42,6 @@ test("เป้าหมาย: เงินเดือน × 12 → ลงเ�
   // รีโหลด → เป้าและความคืบหน้ายังอยู่
   await expect(page.getByRole("status", { name: "สถานะการบันทึก" })).toHaveText("บันทึกแล้ว");
   await page.reload();
-  await page.getByRole("tab", { name: "เป้าหมาย" }).click();
+  await openGoals(page);
   await expect(page.getByRole("article", { name: "เป้าหมาย เงินออมฉุกเฉิน" }).getByText("15.0%")).toBeVisible();
 });

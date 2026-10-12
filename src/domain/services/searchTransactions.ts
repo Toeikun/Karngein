@@ -1,7 +1,7 @@
 /**
  * searchTransactions — ค้นหา/กรองรายการจริง "คร่อมทุกรอบ" (Phase 12.1)
  *
- * ข้อความค้นหาตรงกับ: ร้าน/ผู้รับ, โน้ต, #tag, ชื่อกลุ่ม/รายได้ในแผน หรือจำนวนเงิน (ถ้าพิมพ์เป็นตัวเลข)
+ * ข้อความค้นหาตรงกับ: ร้าน/ผู้รับ, โน้ต, #tag, ชื่อกลุ่ม/รายได้ในแผน, ชื่อกระเป๋า (12.2) หรือจำนวนเงิน (ถ้าพิมพ์เป็นตัวเลข)
  * ผลลัพธ์เรียงจากล่าสุดก่อน
  */
 import type { CategoryId } from "../entities/Category";
@@ -32,7 +32,8 @@ export function searchTransactions(plan: Plan, transactions: Transaction[], quer
       t.type === "income"
         ? plan.incomes.find((i) => i.id === t.planIncomeId)?.name
         : plan.expenses.find((g) => g.id === t.planGroupId)?.name;
-    return [t.merchant, t.note, linkedName].some((field) => field?.toLowerCase().includes(text));
+    const walletNames = (plan.wallets ?? []).filter((w) => w.id === t.walletId || w.id === t.toWalletId).map((w) => w.name);
+    return [t.merchant, t.note, linkedName, ...walletNames].some((field) => field?.toLowerCase().includes(text));
   };
 
   return transactions

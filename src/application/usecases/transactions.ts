@@ -8,7 +8,7 @@ import type { TransactionRepository } from "../ports/TransactionRepository";
 
 export type TransactionResult = { ok: true; transaction: Transaction } | { ok: false; errors: ValidationError[] };
 
-/** เก็บเฉพาะ field ที่ใช้ได้ (รายรับไม่มีหมวด/กลุ่ม/เป้า, ตัดช่องว่างของโน้ต) */
+/** เก็บเฉพาะ field ที่ใช้ได้ (รายรับไม่มีหมวด/กลุ่ม/เป้า, โอนมีแค่ต้นทาง/ปลายทาง, ตัดช่องว่างของโน้ต) */
 function normalize(input: TransactionInput): TransactionInput {
   const note = input.note?.trim();
   const merchant = input.merchant?.trim();
@@ -18,7 +18,11 @@ function normalize(input: TransactionInput): TransactionInput {
     amount: input.amount,
     ...(merchant ? { merchant } : {}),
     ...(note ? { note } : {}),
+    ...(input.walletId ? { walletId: input.walletId } : {}),
   };
+  if (input.type === "transfer") {
+    return { ...base, toWalletId: input.toWalletId };
+  }
   if (input.type === "income") {
     return { ...base, ...(input.planIncomeId ? { planIncomeId: input.planIncomeId } : {}) };
   }

@@ -5,6 +5,7 @@ import type { ExpenseGroup } from "./Expense";
 import type { Goal } from "./Goal";
 import type { Income } from "./Income";
 import { DEFAULT_PAY_CYCLE_START_DAY } from "./PayCycle";
+import type { Wallet } from "./Wallet";
 
 export interface Plan {
   id: string;
@@ -15,6 +16,8 @@ export interface Plan {
   // ---- Phase 11 (ไม่บังคับ → แผนเก่าที่ไม่มี field เหล่านี้ยังใช้ได้) ----
   payCycleStartDay?: number; // วันเริ่มรอบเงินเดือน 1–31 (ไม่มี = 1 = เดือนปฏิทิน)
   goals?: Goal[];
+  // ---- Phase 12.2 ----
+  wallets?: Wallet[];
 }
 
 /** วันเริ่มรอบเงินเดือนของแผน (แผนเก่าไม่มีค่า → 1) */
@@ -22,6 +25,9 @@ export const payCycleStartDayOf = (plan: Plan): number => plan.payCycleStartDay 
 
 /** เป้าหมายของแผน (แผนเก่าไม่มี → []) */
 export const goalsOf = (plan: Plan): Goal[] => plan.goals ?? [];
+
+/** กระเป๋าเงินของแผน (แผนเก่าไม่มี → []) */
+export const walletsOf = (plan: Plan): Wallet[] => plan.wallets ?? [];
 
 export interface CreatePlanParams {
   id: string;

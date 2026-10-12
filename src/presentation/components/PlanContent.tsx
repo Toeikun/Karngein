@@ -25,6 +25,7 @@ import { ExpenseList } from "./expense/ExpenseList";
 import { PlanFlowSection } from "./flow/PlanFlowSection";
 import { GoalsView } from "./goals/GoalsView";
 import { NotificationBell } from "./insights/NotificationBell";
+import { MonthlyPlanSection } from "./monthly/MonthlyPlanSection";
 import { SummaryView } from "./insights/SummaryView";
 import { HEADER_SLOT_ID } from "./layout/Header";
 import { IncomeList } from "./income/IncomeList";
@@ -87,6 +88,7 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
           <IncomeList incomes={plan.incomes} run={run} />
           <ExpenseList expenses={plan.expenses} period={period} run={run} />
         </div>
+        <MonthlyPlanSection plan={plan} today={today} />
         <PlanFlowSection plan={plan} period={period} summary={summary} />
       </>
     );

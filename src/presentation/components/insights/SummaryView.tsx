@@ -11,6 +11,7 @@ import { payCycleStartDayOf, type Plan } from "@/domain/entities/Plan";
 import type { Transaction } from "@/domain/entities/Transaction";
 import { burnDown, categoryBreakdown, compareWithPrevious, dailyTotals, topMerchants } from "@/domain/services/cycleInsights";
 import { compareWithBudget, summarizeCycle, transactionsInCycle } from "@/domain/services/cycleSummary";
+import { planMonthOfCycle } from "@/domain/services/monthlyPlan";
 import type { TransactionsState } from "../../hooks/useTransactions";
 import { cycleLabel, formatThaiDate } from "../../utils/periodLabel";
 import { ActualFlowSection } from "../actual/ActualFlowSection";
@@ -93,7 +94,7 @@ export function SummaryView({ plan, today, tx }: SummaryViewProps) {
               </p>
             )}
           </Card>
-          <BudgetBars comparison={compareWithBudget(plan, transactions, cycle)} />
+          <BudgetBars comparison={compareWithBudget(plan, transactions, cycle)} month={planMonthOfCycle(cycle)} />
         </div>
 
         <div className="space-y-5">

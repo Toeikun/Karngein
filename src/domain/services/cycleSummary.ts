@@ -2,13 +2,15 @@
  * สรุป "รายการจริง" ต่อรอบเงินเดือน และเทียบกับงบในแผน
  *
  *   R16 คงเหลือของรอบ = รับ − จ่าย (เงินออมเข้าเป้านับเป็นรายจ่าย — D13)
- *   R17 งบของกลุ่มต่อรอบ = ยอดรายเดือนของกลุ่มในแผน, % ใช้ไป = จ่ายจริงของกลุ่ม ÷ งบ
+ *   R17′ งบของกลุ่มต่อรอบ = ยอดของกลุ่มในแผนของ "เดือนจริง" ที่ตรงกับรอบ (R35–R36, Phase 13.1)
+ *        เดิมใช้ค่าเฉลี่ยต่อเดือน → รายการรายปี/ครั้งเดียวทำให้ฟ้องเกินงบผิด · % ใช้ไป = จ่ายจริงของกลุ่ม ÷ งบ
  */
 import { CATEGORIES, type CategoryId } from "../entities/Category";
 import { isInCycle, type PayCycle } from "../entities/PayCycle";
 import type { Plan } from "../entities/Plan";
 import type { Transaction } from "../entities/Transaction";
-import { groupTotal, percentOf, type CategorySummary } from "./summarize";
+import { groupTotalInMonth, planMonthOfCycle } from "./monthlyPlan";
+import { percentOf, type CategorySummary } from "./summarize";
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
@@ -40,7 +42,7 @@ export interface BudgetLine {
   groupId: string;
   name: string;
   category: CategoryId;
-  budget: number; // งบต่อรอบ (ยอดรายเดือนของกลุ่ม)
+  budget: number; // งบต่อรอบ (ยอดของกลุ่มในแผนของเดือนที่ตรงกับรอบ — R17′)
   actual: number;
   percentUsed: number | null; // null = ไม่มีงบ (งบ 0) คำนวณ % ไม่ได้
   over: boolean;
@@ -54,9 +56,10 @@ export interface BudgetComparison {
 export function compareWithBudget(plan: Plan, transactions: Transaction[], cycle: PayCycle): BudgetComparison {
   const expenses = transactionsInCycle(transactions, cycle).filter((t) => t.type === "expense");
   const groupIds = new Set(plan.expenses.map((g) => g.id));
+  const month = planMonthOfCycle(cycle);
 
   const lines = plan.expenses.map((group) => {
-    const budget = groupTotal(group, { kind: "monthly" });
+    const budget = groupTotalInMonth(group, month);
     const actual = sum(expenses.filter((t) => t.planGroupId === group.id).map((t) => t.amount));
     return {
       groupId: group.id,

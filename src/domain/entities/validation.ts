@@ -45,6 +45,8 @@ export function validateMoneyEntry(entry: MoneyEntryInput): ValidationError[] {
     errors.push({ field: "frequency", message: "กรุณาเลือกความถี่" });
   } else if ((entry.frequency as Frequency) === "one-time" && !isValidIsoDate(entry.date)) {
     errors.push({ field: "date", message: "รายการครั้งเดียวต้องระบุวันที่" });
+  } else if (entry.date !== undefined && !isValidIsoDate(entry.date)) {
+    errors.push({ field: "date", message: "วันที่ไม่ถูกต้อง" }); // รายปีระบุเดือนที่จ่ายได้ (ไม่บังคับ)
   }
 
   return errors;

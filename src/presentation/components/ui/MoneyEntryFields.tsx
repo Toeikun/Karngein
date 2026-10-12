@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * MoneyEntryFields — ช่อง "จำนวนเงิน + ความถี่ (+ วันที่ ถ้าครั้งเดียว)"
+ * MoneyEntryFields — ช่อง "จำนวนเงิน + ความถี่ (+ วันที่ ถ้าครั้งเดียว / + เดือนที่จ่าย ถ้ารายปี)"
  * ใช้ร่วมกันทั้งรายได้ รายการย่อยของรายจ่าย และกลุ่มที่ไม่มีรายการย่อย
  */
 import { FREQUENCIES, FREQUENCY_LABELS, type Frequency } from "@/domain/entities/Frequency";
+import { DEFAULT_YEAR } from "@/domain/entities/Period";
 import type { ValidationError } from "@/domain/entities/validation";
 import { todayIso } from "../../utils/parseAmount";
+import { THAI_MONTHS } from "../../utils/periodLabel";
 import { MoneyInput } from "./MoneyInput";
 import { Select } from "./Select";
 
@@ -25,6 +27,11 @@ interface MoneyEntryFieldsProps {
 }
 
 const frequencyOptions = FREQUENCIES.map((f) => ({ value: f, label: FREQUENCY_LABELS[f] }));
+// รายปี: เลือกเดือนที่จ่าย (เก็บเป็นวันที่ 1 ของเดือนนั้น — ใช้แค่เดือน ปีไม่มีผล) / ไม่เลือก = เฉลี่ยทุกเดือน
+const yearlyMonthOptions = [
+  { value: "", label: "เฉลี่ยทุกเดือน" },
+  ...THAI_MONTHS.map((m, i) => ({ value: String(i + 1), label: `จ่าย ${m}` })),
+];
 
 /** error แรกของช่องนั้น (หรือ null) */
 export const errorFor = (errors: ValidationError[], field: string) =>
@@ -49,6 +56,15 @@ export function MoneyEntryFields({ name, amount, frequency, date, onChange }: Mo
           onChange(value === "one-time" ? { frequency: value, date: date ?? todayIso() } : { frequency: value })
         }
       />
+      {frequency === "yearly" && (
+        <Select
+          label={`เดือนที่จ่าย ${name}`}
+          value={date ? String(Number(date.slice(5, 7))) : ""}
+          options={yearlyMonthOptions}
+          className="w-36"
+          onChange={(value) => onChange({ date: value ? `${DEFAULT_YEAR}-${value.padStart(2, "0")}-01` : undefined })}
+        />
+      )}
       {frequency === "one-time" && (
         <input
           type="date"

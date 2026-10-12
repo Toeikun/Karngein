@@ -87,3 +87,20 @@ describe("removeIncome", () => {
     expect(removeIncome(basePlan(), "nope", createTestContext()).ok).toBe(false);
   });
 });
+
+describe("Phase 13.1: รายปีระบุเดือนที่จ่ายได้ (R35)", () => {
+  it("รายปี + วันที่ → เก็บไว้ / ล้างเดือน (undefined) → ลบออก / เปลี่ยนเป็นรายเดือน → ลบวันที่", () => {
+    const withBonus = unwrap(addIncome(basePlan(), { name: "โบนัส", amount: 60000, frequency: "yearly", date: "2027-12-01" }, createTestContext()));
+    expect(withBonus.incomes[1]).toMatchObject({ frequency: "yearly", date: "2027-12-01" });
+
+    const cleared = unwrap(updateIncome(withBonus, "id-1", { date: undefined }, createTestContext()));
+    expect(cleared.incomes[1]).not.toHaveProperty("date"); // Firestore เก็บ undefined ไม่ได้
+
+    const monthly = unwrap(updateIncome(withBonus, "id-1", { frequency: "monthly" }, createTestContext()));
+    expect(monthly.incomes[1]).not.toHaveProperty("date");
+  });
+
+  it("วันที่ผิดรูปแบบ → error", () => {
+    expect(addIncome(basePlan(), { name: "โบนัส", amount: 1, frequency: "yearly", date: "2027-13-01" }, createTestContext()).ok).toBe(false);
+  });
+});

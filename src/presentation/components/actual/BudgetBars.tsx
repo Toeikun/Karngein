@@ -1,15 +1,22 @@
 import { formatBaht } from "@/domain/entities/Money";
 import type { BudgetComparison } from "@/domain/services/cycleSummary";
+import type { YearMonth } from "@/domain/entities/Period";
 import { CATEGORY_STYLES } from "../../styles/categoryStyles";
+import { THAI_MONTHS } from "../../utils/periodLabel";
 
-/** แถบเทียบงบต่อกลุ่ม (R17) — เกินงบเป็นสีแดง */
-export function BudgetBars({ comparison }: { comparison: BudgetComparison }) {
+/** แถบเทียบงบต่อกลุ่ม (R17′ — งบของแผนเดือนที่ตรงกับรอบ) — เกินงบเป็นสีแดง */
+export function BudgetBars({ comparison, month }: { comparison: BudgetComparison; month?: YearMonth }) {
   const lines = comparison.lines.filter((line) => line.budget > 0 || line.actual > 0);
   return (
     <section aria-labelledby="budget-heading" className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100 sm:p-5">
       <h2 id="budget-heading" className="mb-3 text-lg font-semibold text-slate-800">
         ใช้ไปเทียบกับงบ
       </h2>
+      {month && (
+        <p className="-mt-2 mb-3 text-xs text-slate-500">
+          งบตามแผนเดือน {THAI_MONTHS[month.month - 1]} {month.year} (รายการรายปี/ครั้งเดียวนับในเดือนที่ถึงกำหนด)
+        </p>
+      )}
       {lines.length === 0 ? (
         <p className="text-sm text-slate-500">ยังไม่มีกลุ่มรายจ่ายในแผน — เพิ่มที่แท็บ &quot;วางแผน&quot;</p>
       ) : (

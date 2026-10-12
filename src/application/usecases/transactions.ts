@@ -11,7 +11,14 @@ export type TransactionResult = { ok: true; transaction: Transaction } | { ok: f
 /** เก็บเฉพาะ field ที่ใช้ได้ (รายรับไม่มีหมวด/กลุ่ม/เป้า, ตัดช่องว่างของโน้ต) */
 function normalize(input: TransactionInput): TransactionInput {
   const note = input.note?.trim();
-  const base = { date: input.date, type: input.type, amount: input.amount, ...(note ? { note } : {}) };
+  const merchant = input.merchant?.trim();
+  const base = {
+    date: input.date,
+    type: input.type,
+    amount: input.amount,
+    ...(merchant ? { merchant } : {}),
+    ...(note ? { note } : {}),
+  };
   if (input.type === "income") {
     return { ...base, ...(input.planIncomeId ? { planIncomeId: input.planIncomeId } : {}) };
   }

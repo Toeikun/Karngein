@@ -2,32 +2,50 @@
 
 /**
  * TransactionForm — ฟอร์มลงรายการจริง (ออกแบบให้ลงบนมือถือได้เร็ว)
- * - เลือกรายจ่าย/รายรับ → กรอกจำนวน → (เลือกกลุ่มในแผน) → บันทึก
- * - ผูกกับกลุ่มในแผน → หมวดตามกลุ่มอัตโนมัติ / ไม่ผูก → เลือกหมวดเอง
- * - editing = รายการที่กำลังแก้ (ถ้ามี)
+ * - จำนวนเงินคิดเลขได้ เช่น "120+35×2" (Domain: evaluateAmount)
+ * - ใส่ร้าน/ผู้รับ และ #tag ในโน้ตได้
+ * - เดากลุ่ม/หมวดจากที่เคยจด (Domain: guessCategory) — ถ้าผู้ใช้เลือกเองแล้วจะไม่เดาทับ
+ * - ผูกกับกลุ่มในแผน → หมวดตามกลุ่ม / เลือกเป้าหมาย → หมวดตามเป้า / ไม่ผูก → เลือกหมวดเอง
+ * - withKeypad: แสดงแป้นตัวเลขในแอป (ใช้ในหน้าต่าง "ลงรายการเร็ว")
  */
 import { useId, useState } from "react";
 import { CATEGORIES, type CategoryId } from "@/domain/entities/Category";
+import { formatBaht } from "@/domain/entities/Money";
 import type { Plan } from "@/domain/entities/Plan";
 import type { Transaction, TransactionInput, TransactionType } from "@/domain/entities/Transaction";
 import type { ValidationError } from "@/domain/entities/validation";
-import { formatAmountInput, parseAmount } from "../../utils/parseAmount";
+import { evaluateAmount } from "@/domain/services/amountExpression";
+import { guessCategory, type GuessSource } from "@/domain/services/categoryGuess";
+import { formatAmountInput } from "../../utils/parseAmount";
+import { AmountKeypad } from "./AmountKeypad";
 
 interface TransactionFormProps {
   plan: Plan;
   today: string;
   editing: Transaction | null;
+  history: Transaction[]; // ใช้เดาหมวด
   onSubmit: (input: TransactionInput) => Promise<ValidationError[]>;
-  onCancelEdit: () => void;
+  onCancelEdit?: () => void;
+  onSaved?: () => void;
+  withKeypad?: boolean;
+  title?: string;
 }
 
 const field = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
+
+const GUESS_LABEL: Record<GuessSource, string> = {
+  merchant: "ร้านที่เคยจด",
+  note: "โน้ตที่เคยจด",
+  tag: "#tag ที่เคยใช้",
+  groupName: "ชื่อกลุ่มในแผน",
+};
 
 function initialState(editing: Transaction | null, today: string) {
   return {
     type: (editing?.type ?? "expense") as TransactionType,
     amountText: editing ? formatAmountInput(editing.amount) : "",
     date: editing?.date ?? today,
+    merchant: editing?.merchant ?? "",
     groupId: editing?.planGroupId ?? "",
     category: (editing?.category ?? "essential") as CategoryId,
     incomeId: editing?.planIncomeId ?? "",
@@ -36,38 +54,71 @@ function initialState(editing: Transaction | null, today: string) {
   };
 }
 
-export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }: TransactionFormProps) {
+export function TransactionForm({
+  plan,
+  today,
+  editing,
+  history,
+  onSubmit,
+  onCancelEdit,
+  onSaved,
+  withKeypad = false,
+  title,
+}: TransactionFormProps) {
   const [form, setForm] = useState(() => initialState(editing, today));
+  const [pickedByUser, setPickedByUser] = useState(Boolean(editing)); // เลือกกลุ่ม/หมวดเองแล้ว → ไม่เดาทับ
+  const [guessSource, setGuessSource] = useState<GuessSource | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const errorId = useId();
+
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     setSaved(false);
   };
+
+  /** พิมพ์ร้าน/โน้ต → เดากลุ่ม/หมวดให้ (ถ้าผู้ใช้ยังไม่ได้เลือกเอง) */
+  function updateText(key: "merchant" | "note", value: string) {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    setSaved(false);
+    if (pickedByUser || next.type !== "expense") return;
+    const guess = guessCategory(plan, history, { merchant: next.merchant, note: next.note });
+    setGuessSource(guess?.source ?? null);
+    if (guess) setForm({ ...next, groupId: guess.planGroupId ?? "", category: guess.category });
+  }
+
+  function pick<K extends "groupId" | "category" | "goalId">(key: K, value: (typeof form)[K]) {
+    setPickedByUser(true);
+    setGuessSource(null);
+    set(key, value);
+  }
 
   const group = plan.expenses.find((g) => g.id === form.groupId);
   const goals = plan.goals ?? [];
   const goal = goals.find((g) => g.id === form.goalId);
   // หมวดของรายจ่าย: ตามกลุ่มที่ผูก > ตามเป้าหมายที่เลือก > ที่ผู้ใช้เลือกเอง
   const categoryFromLink = group?.category ?? goal?.category;
+  const amount = form.amountText.trim() ? evaluateAmount(form.amountText) : null;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    const amount = parseAmount(form.amountText);
-    if (!amount.ok) {
-      setErrors({ amount: amount.message });
+    const parsed = evaluateAmount(form.amountText);
+    if (!parsed.ok) {
+      setErrors({ amount: parsed.message });
       return;
     }
     const note = form.note.trim() || undefined;
+    const merchant = form.merchant.trim() || undefined;
     const input: TransactionInput =
       form.type === "income"
-        ? { type: "income", date: form.date, amount: amount.value, note, planIncomeId: form.incomeId || undefined }
+        ? { type: "income", date: form.date, amount: parsed.value, merchant, note, planIncomeId: form.incomeId || undefined }
         : {
             type: "expense",
             date: form.date,
-            amount: amount.value,
+            amount: parsed.value,
+            merchant,
             note,
             category: categoryFromLink ?? form.category,
             planGroupId: form.groupId || undefined,
@@ -79,8 +130,11 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
     setErrors(Object.fromEntries(result.map((e) => [e.field, e.message])));
     if (result.length === 0) {
       setSaved(true);
-      // ลงรายการถัดไปได้ทันที: ล้างจำนวน/โน้ต แต่คงวันที่และประเภทไว้
-      setForm((f) => ({ ...f, amountText: "", note: "" }));
+      // ลงรายการถัดไปได้ทันที: ล้างจำนวน/ร้าน/โน้ต แต่คงวันที่และประเภทไว้
+      setForm((f) => ({ ...f, amountText: "", merchant: "", note: "" }));
+      setPickedByUser(false);
+      setGuessSource(null);
+      onSaved?.();
     }
   }
 
@@ -95,9 +149,11 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
     </button>
   );
 
+  const heading = title ?? (editing ? "แก้ไขรายการ" : "ลงรายการ");
+
   return (
-    <form onSubmit={submit} aria-label={editing ? "แก้ไขรายการ" : "ลงรายการใหม่"} className="space-y-3 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100 sm:p-5">
-      <h2 className="text-lg font-semibold text-slate-800">{editing ? "แก้ไขรายการ" : "ลงรายการ"}</h2>
+    <form onSubmit={submit} aria-label={editing ? "แก้ไขรายการ" : withKeypad ? "ลงรายการเร็ว" : "ลงรายการใหม่"} className="space-y-3">
+      <h2 className="text-lg font-semibold text-slate-800">{heading}</h2>
 
       <div role="group" aria-label="ประเภทรายการ" className="flex gap-2">
         {typeButton("expense", "รายจ่าย", "bg-rose-600 text-white")}
@@ -112,13 +168,24 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
               aria-label="จำนวนเงินรายการ"
               aria-invalid={errors.amount ? true : undefined}
               aria-describedby={errors.amount ? errorId : undefined}
-              inputMode="decimal"
-              placeholder="0"
+              // มีแป้นในแอปแล้ว → ไม่ต้องเด้งแป้นของมือถือ
+              inputMode={withKeypad ? "none" : "decimal"}
+              placeholder="0 หรือ 120+35"
               value={form.amountText}
               onChange={(e) => set("amountText", e.target.value)}
               className={`${field} pl-7 text-right text-lg tabular-nums`}
             />
           </div>
+          {/* มีแป้นตัวเลข → จองบรรทัดผลรวมไว้เสมอ ไม่ให้แป้นขยับลงตอนผลรวมโผล่ (กดพลาดปุ่ม) */}
+          {(withKeypad || (amount?.ok && amount.isExpression)) && (
+            <p className="mt-1 min-h-5 text-right text-sm text-slate-500" aria-live="polite">
+              {amount?.ok && amount.isExpression && (
+                <>
+                  = <strong className="tabular-nums text-slate-800">{formatBaht(amount.value)}</strong>
+                </>
+              )}
+            </p>
+          )}
           {errors.amount && (
             <p id={errorId} role="alert" className="mt-1 text-xs text-red-600">
               {errors.amount}
@@ -131,9 +198,19 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
         </div>
       </div>
 
+      {withKeypad && <AmountKeypad value={form.amountText} onChange={(v) => set("amountText", v)} />}
+
+      <input
+        aria-label={form.type === "income" ? "ผู้จ่าย / แหล่งที่มา" : "ร้าน / ผู้รับ"}
+        placeholder={form.type === "income" ? "ผู้จ่าย / แหล่งที่มา (ไม่บังคับ)" : "ร้าน / ผู้รับ (ไม่บังคับ) เช่น ร้านข้าวมันไก่"}
+        value={form.merchant}
+        onChange={(e) => updateText("merchant", e.target.value)}
+        className={field}
+      />
+
       {form.type === "expense" ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <select aria-label="ผูกกับกลุ่มในแผน" value={form.groupId} onChange={(e) => set("groupId", e.target.value)} className={field}>
+          <select aria-label="ผูกกับกลุ่มในแผน" value={form.groupId} onChange={(e) => pick("groupId", e.target.value)} className={field}>
             <option value="">— ไม่ผูกกับกลุ่ม —</option>
             {plan.expenses.map((g) => (
               <option key={g.id} value={g.id}>
@@ -142,11 +219,9 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
             ))}
           </select>
           {categoryFromLink ? (
-            <p className="flex h-11 items-center text-sm text-slate-500">
-              หมวด: {CATEGORIES.find((c) => c.id === categoryFromLink)?.label}
-            </p>
+            <p className="flex h-11 items-center text-sm text-slate-500">หมวด: {CATEGORIES.find((c) => c.id === categoryFromLink)?.label}</p>
           ) : (
-            <select aria-label="หมวดรายการ" value={form.category} onChange={(e) => set("category", e.target.value as CategoryId)} className={field}>
+            <select aria-label="หมวดรายการ" value={form.category} onChange={(e) => pick("category", e.target.value as CategoryId)} className={field}>
               {CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -154,8 +229,13 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
               ))}
             </select>
           )}
+          {guessSource && (
+            <p className="text-xs text-indigo-600 sm:col-span-2" role="status">
+              ✨ เดาจาก{GUESS_LABEL[guessSource]} — เปลี่ยนได้
+            </p>
+          )}
           {goals.length > 0 && (
-            <select aria-label="นับเข้าเป้าหมาย" value={form.goalId} onChange={(e) => set("goalId", e.target.value)} className={`${field} sm:col-span-2`}>
+            <select aria-label="นับเข้าเป้าหมาย" value={form.goalId} onChange={(e) => pick("goalId", e.target.value)} className={`${field} sm:col-span-2`}>
               <option value="">— ไม่นับเข้าเป้าหมาย —</option>
               {goals.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -176,13 +256,19 @@ export function TransactionForm({ plan, today, editing, onSubmit, onCancelEdit }
         </select>
       )}
 
-      <input aria-label="โน้ต" placeholder="โน้ต (ไม่บังคับ) เช่น ข้าวกลางวัน" value={form.note} onChange={(e) => set("note", e.target.value)} className={field} />
+      <input
+        aria-label="โน้ต"
+        placeholder="โน้ต (ไม่บังคับ) ใส่ #tag ได้ เช่น ข้าวกับเพื่อน #ทำงาน"
+        value={form.note}
+        onChange={(e) => updateText("note", e.target.value)}
+        className={field}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={saving} className="h-11 flex-1 rounded-xl bg-indigo-600 px-5 font-medium text-white hover:bg-indigo-700 disabled:opacity-60 sm:flex-none">
           {saving ? "กำลังบันทึก…" : editing ? "บันทึกการแก้ไข" : "บันทึกรายการ"}
         </button>
-        {editing && (
+        {editing && onCancelEdit && (
           <button type="button" onClick={onCancelEdit} className="h-11 rounded-xl px-4 text-slate-600 hover:bg-slate-100">
             ยกเลิก
           </button>

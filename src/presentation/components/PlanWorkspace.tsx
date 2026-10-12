@@ -9,16 +9,9 @@ import type { Period } from "@/domain/entities/Period";
 import { summarize } from "@/domain/services/summarize";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { usePlan, type UsePlanOptions } from "../hooks/usePlan";
-import { ActualView } from "./actual/ActualView";
-import { GoalsView } from "./goals/GoalsView";
-import { ExpenseList } from "./expense/ExpenseList";
-import { PlanFlowSection } from "./flow/PlanFlowSection";
-import { IncomeList } from "./income/IncomeList";
 import { Header } from "./layout/Header";
-import { PeriodSwitcher } from "./period/PeriodSwitcher";
 import { PlanBar } from "./plan/PlanBar";
-import { PresetBar } from "./preset/PresetBar";
-import { SummaryCards } from "./summary/SummaryCards";
+import { PlanContent, type WorkspaceTab } from "./PlanContent";
 import { LoadingState } from "./ui/LoadingState";
 
 interface PlanWorkspaceProps extends UsePlanOptions {
@@ -64,51 +57,56 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
             onExport={exportCurrentPlan}
           />
           <WorkspaceTabs tab={tab} onChange={setTab} />
-          {tab === "plan" ? (
-            <>
-              <SummaryCards summary={summary} />
-              <PeriodSwitcher period={period} onChange={setPeriod} />
-              <PresetBar plan={plan} run={run} />
-              <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
-                <IncomeList incomes={plan.incomes} run={run} />
-                <ExpenseList expenses={plan.expenses} period={period} run={run} />
-              </div>
-              <PlanFlowSection plan={plan} period={period} summary={summary} />
-            </>
-          ) : tab === "actual" ? (
-            // key = plan.id → สลับแผนแล้วโหลดรายการของแผนใหม่ทั้งหมด
-            <ActualView key={plan.id} plan={plan} run={run} repository={transactionRepository} ctx={ctx} />
-          ) : (
-            <GoalsView key={plan.id} plan={plan} run={run} repository={transactionRepository} ctx={ctx} />
-          )}
+          <PlanContent
+            key={plan.id} // สลับแผน → โหลดรายการของแผนใหม่ทั้งหมด
+            plan={plan}
+            tab={tab}
+            run={run}
+            period={period}
+            onPeriodChange={setPeriod}
+            summary={summary}
+            transactionRepository={transactionRepository}
+            ctx={ctx}
+          />
         </>
       )}
     </>
   );
 }
 
-type WorkspaceTab = "plan" | "actual" | "goals";
-
 function WorkspaceTabs({ tab, onChange }: { tab: WorkspaceTab; onChange: (tab: WorkspaceTab) => void }) {
-  const tabs: { id: WorkspaceTab; label: string }[] = [
-    { id: "plan", label: "วางแผน" },
-    { id: "actual", label: "บันทึกจริง" },
-    { id: "goals", label: "เป้าหมาย" },
+  const tabs: { id: WorkspaceTab; label: string; icon: string }[] = [
+    { id: "plan", label: "วางแผน", icon: "🗺️" },
+    { id: "actual", label: "รายการ", icon: "🧾" },
+    { id: "goals", label: "เป้าหมาย", icon: "🎯" },
   ];
+  // มือถือ: แถบล่างติดจอแบบแอป (D19) / คอมฯ (lg): แท็บด้านบนเหมือนเดิม
   return (
-    <div role="tablist" aria-label="มุมมองของแผน" className="flex rounded-2xl bg-slate-200/70 p-1">
+    <nav
+      role="tablist"
+      aria-label="มุมมองของแผน"
+      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:rounded-2xl lg:border-0 lg:bg-slate-200/70 lg:p-1"
+    >
       {tabs.map((t) => (
         <button
           key={t.id}
           type="button"
           role="tab"
           aria-selected={tab === t.id}
-          onClick={() => onChange(t.id)}
-          className={`h-11 flex-1 rounded-xl text-sm font-semibold transition ${tab === t.id ? "bg-white text-indigo-700 shadow" : "text-slate-600"}`}
+          onClick={() => {
+            onChange(t.id);
+            window.scrollTo?.({ top: 0 });
+          }}
+          className={`flex min-h-14 flex-1 flex-col items-center justify-center rounded-xl text-xs font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
+            tab === t.id ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
+          }`}
         >
+          <span aria-hidden className="text-lg lg:text-base">
+            {t.icon}
+          </span>
           {t.label}
         </button>
       ))}
-    </div>
+    </nav>
   );
 }

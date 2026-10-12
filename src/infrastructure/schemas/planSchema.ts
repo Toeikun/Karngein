@@ -61,6 +61,7 @@ export const transactionSchema = z.object({
   date: dateSchema,
   type: z.enum(["income", "expense"]),
   amount: z.number().positive(),
+  merchant: z.string().optional(),
   note: z.string().optional(),
   category: categorySchema.optional(),
   planGroupId: z.string().optional(),

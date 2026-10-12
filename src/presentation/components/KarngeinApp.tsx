@@ -130,5 +130,6 @@ export function KarngeinApp({
     );
   }
 
-  return <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:py-8">{content}</div>;
+  // pb-28: เว้นที่ให้แถบแท็บด้านล่าง + ปุ่ม + บนมือถือ
+  return <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-5 pb-28 sm:pt-8 lg:pb-8">{content}</div>;
 }

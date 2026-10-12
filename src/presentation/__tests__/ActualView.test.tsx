@@ -30,7 +30,7 @@ async function openActual(plan: Plan = { ...goldenPlan3, goals: [] }) {
     />,
   );
   await screen.findByRole("heading", { name: "แหล่งรายได้" });
-  await user.click(screen.getByRole("tab", { name: "บันทึกจริง" }));
+  await user.click(screen.getByRole("tab", { name: "รายการ" }));
   await screen.findByRole("heading", { name: "ลงรายการ" });
   return { user, repository, transactions };
 }

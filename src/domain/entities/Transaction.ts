@@ -13,7 +13,8 @@ export interface Transaction {
   date: string; // 'YYYY-MM-DD'
   type: TransactionType;
   amount: number; // > 0
-  note?: string;
+  merchant?: string; // ร้าน / ผู้รับ / ผู้จ่าย (Phase 12.1)
+  note?: string; // พิมพ์ #tag ในโน้ตได้ เช่น "ข้าวกับเพื่อน #ทำงาน"
   category?: CategoryId; // บังคับเมื่อเป็นรายจ่าย
   planGroupId?: string;
   planIncomeId?: string;

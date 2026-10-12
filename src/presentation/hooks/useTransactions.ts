@@ -4,7 +4,8 @@
  * useTransactions — รายการจริงของแผนที่เปิดอยู่ (โหลด / เพิ่ม / แก้ / ลบ)
  * ใช้ use case จาก Application — hook นี้ไม่รู้ว่าข้อมูลอยู่ในเครื่องหรือบนคลาวด์
  *
- * หมายเหตุ: component ที่ใช้ hook นี้ควรใส่ key={planId} → สลับแผนแล้ว state เริ่มใหม่ (โหลดใหม่ทั้งหมด)
+ * ใช้ที่ PlanContent ที่เดียว แล้วส่งต่อให้แท็บรายการ / เป้าหมาย / ปุ่ม + (ข้อมูลชุดเดียวกัน ไม่เพี้ยนกัน)
+ * PlanContent ใส่ key={planId} → สลับแผนแล้ว state เริ่มใหม่ (โหลดใหม่ทั้งหมด)
  */
 import { useCallback, useEffect, useState } from "react";
 import type { UseCaseContext } from "@/application/context";
@@ -66,3 +67,6 @@ export function useTransactions(repository: TransactionRepository, planId: strin
 
   return { transactions, loading, error, add, update, remove };
 }
+
+/** สิ่งที่ useTransactions คืนให้ (ส่งต่อให้หลายหน้าใช้ข้อมูลชุดเดียวกัน) */
+export type TransactionsState = ReturnType<typeof useTransactions>;

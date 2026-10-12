@@ -18,7 +18,7 @@ test("เป้าหมาย: เงินเดือน × 12 → ลงเ�
   await expect(card.getByText("10.0%")).toBeVisible(); // 18,000 / 180,000
 
   // ลงเงินออมเข้าเป้า 9,000
-  await page.getByRole("tab", { name: "บันทึกจริง" }).click();
+  await page.getByRole("tab", { name: "รายการ" }).click();
   const tx = page.getByRole("form", { name: "ลงรายการใหม่" });
   await tx.getByLabel("จำนวนเงินรายการ").fill("9000");
   await tx.getByLabel("นับเข้าเป้าหมาย").selectOption({ label: "เป้าหมาย: เงินออมฉุกเฉิน" });

@@ -143,16 +143,27 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
   });
 
   it("ครั้งก่อนล็อกอินอยู่ (hint) → รอยืนยันก่อน ไม่แสดงข้อมูลในเครื่องชั่วคราว", async () => {
+    // ตอบ "ไม่ย้าย" → คลาวด์ไม่มีแผนนี้ ยอดของแผนในเครื่อง (฿34,166.67) ไม่ควรโผล่บนจอเลยสักครั้ง
+    // (เดิมเทสต์ตอบ "ย้าย" ทำให้ยอดเดียวกันโผล่จากคลาวด์อย่างถูกต้อง → ผลเทสต์ขึ้นกับจังหวะ = flaky)
+    vi.mocked(window.confirm).mockReturnValue(false);
     const auth = new FakeAuthService();
     auth.hint = true;
     const guest = new InMemoryPlanRepository();
     await guest.save(goldenPlan1);
+    let guestDataEverShown = false;
+    const observer = new MutationObserver(() => {
+      if (document.body.textContent?.includes("฿34,166.67")) guestDataEverShown = true;
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
     render(<KarngeinApp auth={auth} repository={guest} cloudRepository={() => new InMemoryPlanRepository()} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
     expect(screen.getAllByText("กำลังโหลด…").length).toBeGreaterThan(0);
     expect(screen.queryByRole("status", { name: "รายได้รวม" })).not.toBeInTheDocument();
     auth.emit({ uid: "alice", displayName: "Alice", email: "a@x.com" });
     await screen.findByRole("button", { name: /บัญชี Alice/ });
-    expect(screen.queryByText("฿34,166.67")).not.toBeInTheDocument(); // ไม่เคยแสดงข้อมูล guest
+    await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿0.00")); // แผนใหม่บนคลาวด์
+    observer.disconnect();
+    expect(guestDataEverShown).toBe(false);
   });
 
   it("ไม่ได้ตั้งค่า Firebase (auth = null) → ไม่มีปุ่มเข้าสู่ระบบ ใช้แบบ Guest ได้ปกติ", async () => {

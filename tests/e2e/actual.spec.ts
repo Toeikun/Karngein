@@ -15,7 +15,7 @@ function isoDaysFromToday(n: number): string {
 test("บันทึกจริง: ตั้งรอบ → ลงรายรับ/รายจ่าย → เทียบงบ → รอบก่อนหน้า → รีโหลดแล้วข้อมูลยังอยู่", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click(); // มีรายได้ + กลุ่มรายจ่ายให้ผูก
-  await page.getByRole("tab", { name: "บันทึกจริง" }).click();
+  await page.getByRole("tab", { name: "รายการ" }).click();
 
   // รอบเริ่มวันนี้ → รายการวันนี้อยู่รอบปัจจุบัน ส่วนเมื่อวานอยู่รอบก่อน (ไม่ขึ้นกับวันที่รันเทสต์)
   const todayDay = new Date().getDate();
@@ -55,7 +55,7 @@ test("บันทึกจริง: ตั้งรอบ → ลงราย�
   // รีโหลด → รายการยังอยู่ (เก็บในเบราว์เซอร์ โหมด Guest)
   await expect(page.getByRole("status", { name: "สถานะการบันทึก" })).toHaveText("บันทึกแล้ว");
   await page.reload();
-  await page.getByRole("tab", { name: "บันทึกจริง" }).click();
+  await page.getByRole("tab", { name: "รายการ" }).click();
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
   await expect(txList(page).getByText("ค่าเช่า")).toBeVisible();
   await expect(page.getByRole("img", { name: "แผนภาพการไหลของเงิน" })).toBeVisible(); // ผังตามจริงแสดงหลังรีโหลด

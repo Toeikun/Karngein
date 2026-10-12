@@ -70,7 +70,7 @@ describe("CP-11.4: หน้าเป้าหมาย", () => {
     const { user } = await openGoals();
     await createEmergencyGoal(user);
 
-    await user.click(screen.getByRole("tab", { name: "บันทึกจริง" }));
+    await user.click(screen.getByRole("tab", { name: "รายการ" }));
     const form = await screen.findByRole("form", { name: "ลงรายการใหม่" });
     await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), "5000");
     fireEvent.change(within(form).getByLabelText("วันที่รายการ"), { target: { value: "2026-10-01" } });

@@ -5,33 +5,25 @@
  * ความคืบหน้าคำนวณจาก goalProgress (Domain) โดยใช้รายการจริงทุกรอบของแผน
  */
 import { useState } from "react";
-import type { UseCaseContext } from "@/application/context";
-import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import { addGoal, removeGoal, updateGoal } from "@/application/usecases/goals";
 import { goalsOf, type Plan } from "@/domain/entities/Plan";
 import { goalProgress } from "@/domain/services/goalProgress";
 import type { RunUseCase } from "../../hooks/usePlan";
-import { useTransactions } from "../../hooks/useTransactions";
-import { todayIso } from "../../utils/parseAmount";
-import { LoadingState } from "../ui/LoadingState";
+import type { TransactionsState } from "../../hooks/useTransactions";
 import { GoalCard } from "./GoalCard";
 import { GoalForm } from "./GoalForm";
 
 interface GoalsViewProps {
   plan: Plan;
   run: RunUseCase;
-  repository: TransactionRepository;
-  ctx: UseCaseContext;
+  today: string;
+  tx: TransactionsState;
 }
 
-export function GoalsView({ plan, run, repository, ctx }: GoalsViewProps) {
-  const { transactions, loading, error } = useTransactions(repository, plan.id, ctx);
+export function GoalsView({ plan, run, today, tx }: GoalsViewProps) {
+  const { transactions } = tx;
   const [editing, setEditing] = useState<string | "new" | null>(null); // id ของเป้าที่แก้ / "new" / ปิดฟอร์ม
   const goals = goalsOf(plan);
-  const today = todayIso(ctx.now());
-
-  if (loading) return <LoadingState message="กำลังโหลดเป้าหมาย…" stage="โหลดรายการจริงเพื่อคำนวณเป้า" />;
-  if (error) return <p role="alert" className="rounded-3xl bg-red-50 p-6 text-center text-red-800">โหลดข้อมูลไม่สำเร็จ: {error}</p>;
 
   const editingGoal = editing && editing !== "new" ? goals.find((g) => g.id === editing) ?? null : null;
 

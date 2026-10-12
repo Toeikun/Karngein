@@ -7,6 +7,7 @@ import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRep
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { createTestContext } from "../../application/__tests__/testContext";
 import { goldenPlan1 } from "../../domain/__tests__/goldenData";
+import { openPlanTab } from "./openPlanTab";
 
 /** เปิดแอปด้วย repository ในหน่วยความจำ (ใส่แผนเริ่มต้นได้) แล้วรอจนโหลดเสร็จ */
 async function renderApp(initialPlan?: Plan) {
@@ -14,7 +15,7 @@ async function renderApp(initialPlan?: Plan) {
   if (initialPlan) await repository.save(initialPlan);
   const user = userEvent.setup();
   render(<KarngeinApp auth={null} repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
-  await screen.findByRole("heading", { name: "แหล่งรายได้" });
+  await openPlanTab();
   return { user, repository };
 }
 
@@ -152,7 +153,7 @@ describe("CP-5: บั๊กที่เจอตอนตรวจ Manual", () 
         <KarngeinApp auth={null} repository={repository} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />
       </StrictMode>,
     );
-    await screen.findByRole("heading", { name: "แหล่งรายได้" });
+    await openPlanTab();
     expect(await repository.list()).toHaveLength(1);
   });
 });

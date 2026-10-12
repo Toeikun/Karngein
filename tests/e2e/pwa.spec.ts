@@ -16,6 +16,7 @@ test("manifest ครบตามเกณฑ์ติดตั้งแอป (
 
 test("ปิดเน็ตแล้วเปิดแอปใหม่ → หน้าเว็บยังเปิดได้ และเห็นข้อมูลล่าสุด", async ({ page, context }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // แม่แบบอยู่แท็บวางแผน
   await page.getByRole("button", { name: "ครอบครัว" }).click();
   await expect(page.getByRole("status", { name: "สถานะการบันทึก" })).toHaveText("บันทึกแล้ว");
 
@@ -26,6 +27,7 @@ test("ปิดเน็ตแล้วเปิดแอปใหม่ → ห
 
   await context.setOffline(true);
   await page.reload();
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ
   await expect(page.getByRole("heading", { name: "แหล่งรายได้" })).toBeVisible();
   await expect(page.getByRole("status", { name: "รายได้รวม" })).toHaveText("฿69,666.67"); // 35,000 + 28,000 + 80,000/12
   await context.setOffline(false);

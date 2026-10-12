@@ -4,6 +4,7 @@ const card = (page: Page, name: string) => page.getByRole("status", { name });
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ
   await expect(page.getByRole("heading", { name: "แหล่งรายได้" })).toBeVisible();
 });
 
@@ -28,6 +29,7 @@ test("flow หลัก: แม่แบบ → เพิ่มรายจ่�
   // 4. รอบันทึกอัตโนมัติ แล้วรีโหลด
   await expect(page.getByRole("status", { name: "สถานะการบันทึก" })).toHaveText("บันทึกแล้ว");
   await page.reload();
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // เปิดใหม่ → กลับมาแท็บรายการ
   await expect(card(page, "รายได้รวม")).toHaveText("฿35,000.00");
   await expect(card(page, "รายจ่ายรวม")).toHaveText("฿31,450.00");
   await expect(page.getByRole("textbox", { name: "จำนวนเงิน รายจ่ายใหม่" })).toHaveValue("1,000");

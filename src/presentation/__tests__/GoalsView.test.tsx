@@ -8,6 +8,7 @@ import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRep
 import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemoryTransactionRepository";
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { goldenPlan3 } from "../../domain/__tests__/goldenData";
+import { openPlanTab } from "./openPlanTab";
 
 /** "วันนี้" = 26 ต.ค. 2026 → รอบ 25 ก.ย. – 24 ต.ค. จบแล้ว (ใช้ประมาณเวลาถึงเป้า R19) */
 function contextAt(iso: string): UseCaseContext {
@@ -29,7 +30,7 @@ async function openGoals(plan: Plan = { ...goldenPlan3, goals: [] }) {
       ctx={contextAt("2026-10-26T12:00:00.000Z")}
     />,
   );
-  await screen.findByRole("heading", { name: "แหล่งรายได้" });
+  await openPlanTab();
   await user.click(screen.getByRole("tab", { name: "เป้าหมาย" }));
   return { user, repository, transactions };
 }
@@ -70,16 +71,14 @@ describe("CP-11.4: หน้าเป้าหมาย", () => {
     const { user } = await openGoals();
     await createEmergencyGoal(user);
 
-    await user.click(screen.getByRole("tab", { name: "รายการ" }));
-    const form = await screen.findByRole("form", { name: "ลงรายการใหม่" });
+    await user.click(screen.getByRole("button", { name: "ลงรายการเร็ว" }));
+    const form = screen.getByRole("form", { name: "ลงรายการเร็ว" });
     await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), "5000");
     fireEvent.change(within(form).getByLabelText("วันที่รายการ"), { target: { value: "2026-10-01" } });
     await user.selectOptions(within(form).getByLabelText("นับเข้าเป้าหมาย"), "id-1");
     expect(within(form).getByText("หมวด: เงินสำรองฉุกเฉิน")).toBeInTheDocument(); // หมวดตามเป้าอัตโนมัติ
     await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
-    await within(form).findByText("บันทึกแล้ว ✓");
-
-    await user.click(screen.getByRole("tab", { name: "เป้าหมาย" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const card = await screen.findByRole("article", { name: "เป้าหมาย เป้าหมายเงินออมฉุกเฉิน" });
     expect(within(card).getByText("10.4%")).toBeInTheDocument();
     expect(within(card).getByText(/ประมาณอีก 95 รอบ \(~7 ปี 11 เดือน\)/)).toBeInTheDocument();

@@ -12,36 +12,40 @@ function isoDaysFromToday(n: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-test("บันทึกจริง: ตั้งรอบ → ลงรายรับ/รายจ่าย → เทียบงบ → รอบก่อนหน้า → รีโหลดแล้วข้อมูลยังอยู่", async ({ page }) => {
+/** ลงรายการผ่านปุ่ม + (แผ่นปิดเองหลังบันทึก) */
+async function addTx(
+  page: Page,
+  { type = "expense", amount, date, income, group, note }: { type?: "expense" | "income"; amount: string; date?: string; income?: string; group?: string; note?: string },
+) {
+  await page.getByRole("button", { name: "ลงรายการเร็ว" }).click();
+  const sheet = page.getByRole("dialog", { name: "ลงรายการเร็ว" });
+  await sheet.getByRole("button", { name: type === "income" ? "รายรับ" : "รายจ่าย", exact: true }).click();
+  await sheet.getByLabel("จำนวนเงินรายการ").fill(amount);
+  if (date) await sheet.getByLabel("วันที่รายการ").fill(date); // date picker จริงของเบราว์เซอร์
+  if (income) await sheet.getByLabel("ผูกกับรายได้ในแผน").selectOption({ label: income });
+  if (group) await sheet.getByLabel("ผูกกับกลุ่มในแผน").selectOption({ label: group });
+  if (note) await sheet.getByLabel("โน้ต").fill(note);
+  await sheet.getByRole("button", { name: "บันทึกรายการ" }).click();
+  await expect(sheet).toBeHidden();
+}
+
+test("รายการ: ตั้งรอบ → ลงรายรับ/รายจ่าย → เทียบงบ → รอบก่อนหน้า → รีโหลดแล้วข้อมูลยังอยู่", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ — แม่แบบอยู่แท็บวางแผน
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click(); // มีรายได้ + กลุ่มรายจ่ายให้ผูก
   await page.getByRole("tab", { name: "รายการ" }).click();
 
   // รอบเริ่มวันนี้ → รายการวันนี้อยู่รอบปัจจุบัน ส่วนเมื่อวานอยู่รอบก่อน (ไม่ขึ้นกับวันที่รันเทสต์)
   const todayDay = new Date().getDate();
+  await page.getByText(/⚙️ รอบเงินเดือนเริ่มวันที่/).click(); // ตั้งค่ารอบพับไว้
   await page.getByLabel("รอบเงินเดือนเริ่มวันที่").selectOption(String(todayDay));
 
-  const form = page.getByRole("form", { name: "ลงรายการใหม่" });
-  // รายรับ: เงินเดือนวันนี้
-  await form.getByRole("button", { name: "รายรับ" }).click();
-  await form.getByLabel("จำนวนเงินรายการ").fill("44100");
-  await form.getByLabel("ผูกกับรายได้ในแผน").selectOption({ label: "เงินเดือน" });
-  await form.getByRole("button", { name: "บันทึกรายการ" }).click();
-  await expect(form.getByText("บันทึกแล้ว ✓")).toBeVisible();
-
+  await addTx(page, { type: "income", amount: "44100", income: "เงินเดือน" });
   // รายจ่าย: ค่าเช่า (ผูกกลุ่ม "รายจ่ายประจำ" งบ 19,050)
-  await form.getByRole("button", { name: "รายจ่าย" }).click();
-  await form.getByLabel("จำนวนเงินรายการ").fill("8000");
-  await form.getByLabel("ผูกกับกลุ่มในแผน").selectOption({ label: "รายจ่ายประจำ" });
-  await form.getByLabel("โน้ต").fill("ค่าเช่า");
-  await form.getByRole("button", { name: "บันทึกรายการ" }).click();
-
-  // รายจ่ายเมื่อวาน → ต้องอยู่รอบก่อนหน้า (ใช้ date picker จริงของเบราว์เซอร์)
-  await form.getByLabel("จำนวนเงินรายการ").fill("99");
-  await form.getByLabel("วันที่รายการ").fill(isoDaysFromToday(-1));
-  await form.getByLabel("โน้ต").fill("กาแฟเมื่อวาน");
-  await form.getByRole("button", { name: "บันทึกรายการ" }).click();
-  await expect(page.getByText("กาแฟเมื่อวาน")).toHaveCount(0); // ไม่อยู่ทั้งในรายการและในผังของรอบนี้ // ไม่อยู่ในรอบนี้
+  await addTx(page, { amount: "8000", group: "รายจ่ายประจำ", note: "ค่าเช่า" });
+  // รายจ่ายเมื่อวาน → ต้องอยู่รอบก่อนหน้า
+  await addTx(page, { amount: "99", date: isoDaysFromToday(-1), note: "กาแฟเมื่อวาน" });
+  await expect(page.getByText("กาแฟเมื่อวาน")).toHaveCount(0); // ไม่อยู่ทั้งในรายการและในผังของรอบนี้
 
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
   await expect(card(page, "จ่ายจริง")).toHaveText("฿8,000.00");
@@ -54,8 +58,7 @@ test("บันทึกจริง: ตั้งรอบ → ลงราย�
 
   // รีโหลด → รายการยังอยู่ (เก็บในเบราว์เซอร์ โหมด Guest)
   await expect(page.getByRole("status", { name: "สถานะการบันทึก" })).toHaveText("บันทึกแล้ว");
-  await page.reload();
-  await page.getByRole("tab", { name: "รายการ" }).click();
+  await page.reload(); // แอปเปิดมาที่แท็บรายการเอง
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
   await expect(txList(page).getByText("ค่าเช่า")).toBeVisible();
   await expect(page.getByRole("img", { name: "แผนภาพการไหลของเงิน" })).toBeVisible(); // ผังตามจริงแสดงหลังรีโหลด

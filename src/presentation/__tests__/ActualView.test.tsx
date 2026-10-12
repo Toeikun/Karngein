@@ -9,6 +9,12 @@ import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemory
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { goldenPlan3 } from "../../domain/__tests__/goldenData";
 
+/** เปิดแผ่นลงรายการจากปุ่ม + ในแถบล่าง → คืนฟอร์มในแผ่น */
+async function openSheet(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "ลงรายการเร็ว" }));
+  return within(screen.getByRole("dialog", { name: "ลงรายการเร็ว" })).getByRole("form", { name: "ลงรายการเร็ว" });
+}
+
 /** "วันนี้" = 5 ต.ค. 2026 (อยู่ในรอบ 25 ก.ย. – 24 ต.ค.) */
 function contextAt(iso: string): UseCaseContext {
   let n = 0;
@@ -29,9 +35,9 @@ async function openActual(plan: Plan = { ...goldenPlan3, goals: [] }) {
       ctx={contextAt("2026-10-05T12:00:00.000Z")}
     />,
   );
-  await screen.findByRole("heading", { name: "แหล่งรายได้" });
-  await user.click(screen.getByRole("tab", { name: "รายการ" }));
-  await screen.findByRole("heading", { name: "ลงรายการ" });
+  // แอปเปิดมาที่แท็บ "รายการ" เลย (Phase 12.1b)
+  await screen.findByRole("status", { name: "รอบที่แสดง" });
+  expect(screen.getByRole("tab", { name: "รายการ" })).toHaveAttribute("aria-selected", "true");
   return { user, repository, transactions };
 }
 
@@ -42,7 +48,7 @@ async function record(
   user: ReturnType<typeof userEvent.setup>,
   { type = "expense", amount, date, group, income, note }: { type?: "expense" | "income"; amount: string; date: string; group?: string; income?: string; note?: string },
 ) {
-  const form = screen.getByRole("form", { name: "ลงรายการใหม่" });
+  const form = await openSheet(user);
   await user.click(within(form).getByRole("button", { name: type === "income" ? "รายรับ" : "รายจ่าย" }));
   await user.clear(within(form).getByLabelText("จำนวนเงินรายการ"));
   await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), amount);
@@ -52,17 +58,17 @@ async function record(
   if (income) await user.selectOptions(within(form).getByLabelText("ผูกกับรายได้ในแผน"), income);
   if (note) await user.type(within(form).getByLabelText("โน้ต"), note);
   await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
-  await within(form).findByText("บันทึกแล้ว ✓");
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument()); // บันทึกแล้วแผ่นปิดเอง
 }
 
 beforeEach(() => vi.spyOn(window, "confirm").mockReturnValue(true));
 afterEach(() => vi.restoreAllMocks());
 
-describe("CP-11.3: หน้า บันทึกจริง — สถานการณ์เงินเดือนออกวันที่ 25", () => {
+describe("CP-11.3 + 12.1b: หน้า รายการ — สถานการณ์เงินเดือนออกวันที่ 25", () => {
   it("เปิดมาที่รอบปัจจุบัน 25 ก.ย. – 24 ต.ค. 2026 และเหลืออีก 20 วัน", async () => {
     await openActual();
     expect(cycleShown()).toHaveTextContent("25 ก.ย. – 24 ต.ค. 2026");
-    expect(screen.getByText("รอบปัจจุบัน")).toBeInTheDocument();
+    expect(screen.getByText(/รอบปัจจุบัน/)).toBeInTheDocument();
     expect(card("เหลืออีก")).toHaveTextContent("20 วัน");
     expect(screen.getByText(/ยังไม่มีรายการในรอบนี้/)).toBeInTheDocument();
   });
@@ -111,7 +117,7 @@ describe("CP-11.3: หน้า บันทึกจริง — สถาน�
 
   it("จำนวนเงินว่าง/ผิด → เตือน ไม่บันทึก", async () => {
     const { user, transactions } = await openActual();
-    const form = screen.getByRole("form", { name: "ลงรายการใหม่" });
+    const form = await openSheet(user);
     await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
     expect(within(form).getByRole("alert")).toHaveTextContent("กรุณาใส่จำนวนเงิน");
     await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), "-50");
@@ -122,11 +128,11 @@ describe("CP-11.3: หน้า บันทึกจริง — สถาน�
 
   it("รายจ่ายไม่ผูกกลุ่ม → เลือกหมวดเอง และนับเป็น 'ไม่ได้ผูกกับกลุ่ม'", async () => {
     const { user } = await openActual();
-    const form = screen.getByRole("form", { name: "ลงรายการใหม่" });
+    const form = await openSheet(user);
     await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), "120");
     await user.selectOptions(within(form).getByLabelText("หมวดรายการ"), "wants");
     await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
-    await within(form).findByText("บันทึกแล้ว ✓");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByText(/รายจ่ายที่ไม่ได้ผูกกับกลุ่ม/)).toHaveTextContent("฿120.00");
   });
 
@@ -134,8 +140,8 @@ describe("CP-11.3: หน้า บันทึกจริง — สถาน�
     const { user, transactions } = await openActual();
     await record(user, { amount: "250", date: "2026-10-01", group: "grp-food", note: "ข้าว" });
 
-    await user.click(screen.getByRole("button", { name: "แก้ไข ข้าว" }));
-    const editForm = screen.getByRole("form", { name: "แก้ไขรายการ" });
+    await user.click(screen.getByRole("button", { name: "แก้ไข ข้าว" })); // แตะรายการ → แผ่นแก้ไข
+    const editForm = within(screen.getByRole("dialog", { name: "แก้ไขรายการ" })).getByRole("form", { name: "แก้ไขรายการ" });
     const amount = within(editForm).getByLabelText("จำนวนเงินรายการ");
     await user.clear(amount);
     await user.type(amount, "400");
@@ -143,8 +149,12 @@ describe("CP-11.3: หน้า บันทึกจริง — สถาน�
     await waitFor(() => expect(card("จ่ายจริง")).toHaveTextContent("฿400.00"));
     expect((await transactions.list(goldenPlan3.id))[0].amount).toBe(400);
 
-    await user.click(screen.getByRole("button", { name: "ลบ ข้าว" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "แก้ไข ข้าว" }));
+    await user.click(screen.getByRole("button", { name: "ลบรายการนี้" })); // ลบได้ในแผ่นแก้ไข
     expect(window.confirm).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await waitFor(() => expect(card("จ่ายจริง")).toHaveTextContent("฿0.00"));
     expect(await transactions.list(goldenPlan3.id)).toEqual([]);
   });

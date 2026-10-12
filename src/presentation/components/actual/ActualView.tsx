@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * ActualView — แท็บ "รายการ": รายการรับ/จ่ายที่เกิดขึ้นจริง แยกตามรอบเงินเดือน (Phase 11.3 + 12.1)
- * - ค้นหา/กรองคร่อมทุกรอบ (ช่องค้นหาด้านบน — ว่าง = แสดงตามรอบ)
- * - ตัวเลขทั้งหมดคำนวณใน Domain (cycleSummary / searchTransactions) — component แค่แสดงผล
- * - ข้อมูลรายการมาจาก PlanContent (ใช้ร่วมกับปุ่ม + และแท็บเป้าหมาย)
+ * ActualView — แท็บ "รายการ" (หน้าแรกของแอป) — Phase 11.3 + 12.1 + 12.1b
+ *   การ์ดคงเหลือ/งบ (BalanceHero) → ค้นหา → รายการแยกตามวัน → เทียบงบรายกลุ่ม → Sankey ของจริง
+ * - ลงรายการใหม่ = ปุ่ม + ในแถบล่าง (PlanContent) / แตะรายการ = แผ่นแก้ไข (ลบได้ในแผ่น)
+ * - ค้นหา/กรองคร่อมทุกรอบ (คำค้นว่าง = แสดงตามรอบ)
+ * - ตัวเลขทั้งหมดคำนวณใน Domain (cycleSummary / dailyView / searchTransactions)
  */
 import { useState } from "react";
 import { setPayCycleStartDay } from "@/application/usecases/plans";
@@ -13,14 +14,15 @@ import { cycleContaining, daysLeftInCycle, shiftCycle } from "@/domain/entities/
 import { payCycleStartDayOf, type Plan } from "@/domain/entities/Plan";
 import type { Transaction } from "@/domain/entities/Transaction";
 import { compareWithBudget, summarizeCycle, transactionsInCycle } from "@/domain/services/cycleSummary";
+import { budgetPace } from "@/domain/services/dailyView";
 import { isEmptyQuery, searchTransactions, type TransactionQuery } from "@/domain/services/searchTransactions";
 import type { RunUseCase } from "../../hooks/usePlan";
 import type { TransactionsState } from "../../hooks/useTransactions";
 import { ActualFlowSection } from "./ActualFlowSection";
+import { BalanceHero } from "./BalanceHero";
 import { BudgetBars } from "./BudgetBars";
-import { CycleNavigator } from "./CycleNavigator";
-import { CycleSummaryCards } from "./CycleSummaryCards";
-import { TransactionForm } from "./TransactionForm";
+import { CycleSettings } from "./CycleSettings";
+import { QuickAddSheet } from "./QuickAddSheet";
 import { TransactionList } from "./TransactionList";
 import { TransactionSearch } from "./TransactionSearch";
 
@@ -32,7 +34,7 @@ interface ActualViewProps {
 }
 
 export function ActualView({ plan, run, today, tx }: ActualViewProps) {
-  const { transactions, add, update, remove } = tx;
+  const { transactions, update, remove } = tx;
   const [offset, setOffset] = useState(0); // 0 = รอบปัจจุบัน, -1 = รอบก่อน, …
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [query, setQuery] = useState<TransactionQuery>({ text: "", type: "all", category: "all" });
@@ -44,73 +46,70 @@ export function ActualView({ plan, run, today, tx }: ActualViewProps) {
   const results = searching ? searchTransactions(plan, transactions, query) : [];
 
   const confirmDelete = (t: Transaction) => {
-    if (window.confirm(`ลบรายการ ${t.merchant ?? t.note ?? ""} ${t.amount.toLocaleString("en-US")} บาท?`)) void remove(t.id);
+    if (window.confirm(`ลบรายการ ${t.merchant ?? t.note ?? ""} ${t.amount.toLocaleString("en-US")} บาท?`)) {
+      void remove(t.id);
+      setEditing(null);
+    }
   };
 
+  // โครงเดียวทั้งตอนค้นหาและตอนดูรอบ → ช่องค้นหาอยู่ตำแหน่งเดิมเสมอ (ไม่ถูกสร้างใหม่ → พิมพ์ต่อได้ไม่หลุดโฟกัส)
   return (
     <div className="space-y-5">
-      <TransactionSearch query={query} onChange={setQuery} />
-
-      {searching ? (
-        <>
-          <p className="text-sm text-slate-600" role="status" aria-label="ผลการค้นหา">
-            พบ {results.length} รายการ · รับ {formatBaht(results.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0))} · จ่าย{" "}
-            {formatBaht(results.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0))}
-          </p>
-          <TransactionList plan={plan} transactions={results} title={`ผลการค้นหา (${results.length})`} emptyMessage="ไม่พบรายการที่ตรงกับคำค้น — ลองคำอื่น หรือล้างตัวกรอง" onEdit={setEditing} onDelete={confirmDelete} />
-          {editing && (
-            <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100 sm:p-5">
-              <TransactionForm
-                key={editing.id}
-                plan={plan}
-                today={today}
-                editing={editing}
-                history={transactions}
-                onCancelEdit={() => setEditing(null)}
-                onSubmit={async (input) => {
-                  const errors = await update({ ...input, id: editing.id });
-                  if (errors.length === 0) setEditing(null);
-                  return errors;
-                }}
-              />
-            </div>
+      {/* มือถือ: การ์ด → ค้นหา + รายการ → เทียบงบ / คอมฯ: ซ้าย = การ์ด + เทียบงบ, ขวา = ค้นหา + รายการ */}
+      <div className="grid gap-5 lg:grid-cols-[2fr_3fr] lg:items-start">
+        <div className={searching ? "hidden" : ""}>
+          {!searching && (
+            <BalanceHero
+              cycle={cycle}
+              isCurrent={offset === 0}
+              summary={summary}
+              pace={budgetPace(plan, transactions, cycle, today)}
+              daysLeft={offset === 0 ? daysLeftInCycle(today, cycle) : null}
+              onShift={(delta) => setOffset((o) => o + delta)}
+              onToday={() => setOffset(0)}
+            />
           )}
-        </>
-      ) : (
-        <>
-          <CycleNavigator
-            cycle={cycle}
-            isCurrent={offset === 0}
-            startDay={startDay}
-            onShift={(delta) => setOffset((o) => o + delta)}
-            onToday={() => setOffset(0)}
-            onStartDayChange={(day) => run((p, c) => setPayCycleStartDay(p, day, c))}
-          />
-          <CycleSummaryCards summary={summary} daysLeft={offset === 0 ? daysLeftInCycle(today, cycle) : null} />
-          <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
-            <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-100 sm:p-5">
-              <TransactionForm
-                key={editing?.id ?? "new"} // เปลี่ยนรายการที่แก้ → ฟอร์มเริ่มค่าใหม่
+        </div>
+        <div className={`space-y-4 lg:row-span-2 lg:row-start-1 ${searching ? "lg:col-span-2" : "lg:col-start-2"}`}>
+          <TransactionSearch query={query} onChange={setQuery} />
+          {searching ? (
+            <>
+              <p className="px-1 text-sm text-slate-600" role="status" aria-label="ผลการค้นหา">
+                พบ {results.length} รายการ · รับ {formatBaht(results.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0))} · จ่าย{" "}
+                {formatBaht(results.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0))}
+              </p>
+              <TransactionList
                 plan={plan}
+                transactions={results}
                 today={today}
-                editing={editing}
-                history={transactions}
-                onSubmit={async (input) => {
-                  if (!editing) return add(input);
-                  const errors = await update({ ...input, id: editing.id });
-                  if (errors.length === 0) setEditing(null);
-                  return errors;
-                }}
-                onCancelEdit={() => setEditing(null)}
+                title={`ผลการค้นหา (${results.length})`}
+                emptyMessage="ไม่พบรายการที่ตรงกับคำค้น — ลองคำอื่น หรือล้างตัวกรอง"
+                onEdit={setEditing}
               />
-            </div>
-            <div className="space-y-5">
-              <BudgetBars comparison={compareWithBudget(plan, transactions, cycle)} />
-              <TransactionList plan={plan} transactions={transactionsInCycle(transactions, cycle)} onEdit={setEditing} onDelete={confirmDelete} />
-            </div>
+            </>
+          ) : (
+            <TransactionList plan={plan} transactions={transactionsInCycle(transactions, cycle)} today={today} onEdit={setEditing} />
+          )}
+        </div>
+        {!searching && (
+          <div className="space-y-2 lg:col-start-1 lg:row-start-2">
+            <BudgetBars comparison={compareWithBudget(plan, transactions, cycle)} />
+            <CycleSettings startDay={startDay} onChange={(day) => run((p, c) => setPayCycleStartDay(p, day, c))} />
           </div>
-          <ActualFlowSection plan={plan} transactions={transactions} cycle={cycle} summary={summary} />
-        </>
+        )}
+      </div>
+      {!searching && <ActualFlowSection plan={plan} transactions={transactions} cycle={cycle} summary={summary} />}
+
+      {editing && (
+        <QuickAddSheet
+          plan={plan}
+          today={today}
+          history={transactions}
+          editing={editing}
+          onSubmit={(input) => update({ ...input, id: editing.id })}
+          onDelete={confirmDelete}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   );

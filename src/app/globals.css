@@ -12,7 +12,8 @@
 }
 
 body {
-  background: var(--background);
+  /* แถบสีอ่อนด้านบน (แนวแอปจดรายจ่าย) แล้วไล่เป็นพื้นเรียบ — ไม่ใช้รูป จึงไม่เพิ่มขนาดหน้า */
+  background: linear-gradient(180deg, #e0e7ff 0, #eef2ff 140px, var(--background) 320px) no-repeat, var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
 }

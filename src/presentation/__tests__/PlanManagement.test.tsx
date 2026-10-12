@@ -9,6 +9,7 @@ import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { readText } from "@/presentation/utils/readText";
 import { createTestContext } from "../../application/__tests__/testContext";
 import { goldenPlan1, goldenPlan3, goldenTransactions3 } from "../../domain/__tests__/goldenData";
+import { openPlanTab } from "./openPlanTab";
 
 /** repository + store ใช้ร่วมกันข้ามการเปิดแอปหลายครั้ง (จำลองการรีเฟรชหน้า) */
 function setup() {
@@ -19,7 +20,7 @@ function setup() {
   const user = userEvent.setup();
   const open = async () => {
     const view = render(<KarngeinApp auth={null} repository={repository} transactionRepository={transactionRepository} activePlanStore={activePlanStore} ctx={ctx} />);
-    await screen.findByRole("heading", { name: "แหล่งรายได้" });
+    await openPlanTab();
     return view;
   };
   return { repository, transactionRepository, activePlanStore, user, open };

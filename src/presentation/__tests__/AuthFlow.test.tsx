@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthService, AuthUser, SignInResult } from "@/application/ports/AuthService";
@@ -8,6 +8,7 @@ import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemory
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { createTestContext } from "../../application/__tests__/testContext";
 import { goldenPlan1, goldenTransactions3 } from "../../domain/__tests__/goldenData";
+import { openPlanTab } from "./openPlanTab";
 
 /** ระบบล็อกอินปลอม — ควบคุมได้จากเทสต์ (ไม่ต่อ Firebase จริง) */
 class FakeAuthService implements AuthService {
@@ -71,11 +72,20 @@ async function setup({ guestPlan = true, denied = false } = {}) {
       ctx={createTestContext()}
     />,
   );
-  await screen.findByRole("heading", { name: "แหล่งรายได้" });
+  await openPlanTab();
   return { auth, guest, cloudRepository, cloudTx, user };
 }
 
 const card = (name: string) => screen.getByRole("status", { name });
+/** สลับบัญชีแล้วหน้าแผนถูกสร้างใหม่ (กลับไปแท็บ "รายการ") → กดแท็บ "วางแผน" แล้วรอยอดรายได้รวม */
+async function expectPlanIncome(text: string) {
+  await waitFor(() => {
+    const tab = screen.getByRole("tab", { name: "วางแผน" });
+    if (tab.getAttribute("aria-selected") !== "true") fireEvent.click(tab);
+    expect(card("รายได้รวม")).toHaveTextContent(text);
+  });
+}
+
 const signInButton = () => screen.getByRole("button", { name: /เข้าสู่ระบบ/ });
 
 beforeEach(() => vi.spyOn(window, "confirm").mockReturnValue(true));
@@ -93,7 +103,7 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     await user.click(signInButton());
     expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("พบแผนในเครื่องนี้ 1 แผน"));
     await screen.findByRole("button", { name: /บัญชี Alice/ });
-    await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿34,166.67"));
+    await expectPlanIncome("฿34,166.67");
     expect((await cloudRepository("alice").get(goldenPlan1.id))?.name).toBe(goldenPlan1.name);
     expect(await cloudTx.list(goldenPlan1.id)).toHaveLength(goldenTransactions3.length);
   });
@@ -103,7 +113,7 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     const { user, cloudRepository, guest } = await setup();
     await user.click(signInButton());
     await screen.findByRole("button", { name: /บัญชี Alice/ });
-    await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿0.00"));
+    await expectPlanIncome("฿0.00");
     expect(await cloudRepository("alice").get(goldenPlan1.id)).toBeNull();
     expect(await guest.get(goldenPlan1.id)).not.toBeNull();
   });
@@ -123,7 +133,7 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "ออกจากระบบ" }));
     await waitFor(() => expect(signInButton()).toBeInTheDocument());
-    await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿34,166.67"));
+    await expectPlanIncome("฿34,166.67");
   });
 
   it("คลาวด์ปฏิเสธสิทธิ์ → แสดงข้อความ error ไม่ค้างหน้า 'กำลังโหลด'", async () => {
@@ -161,7 +171,7 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     expect(screen.queryByRole("status", { name: "รายได้รวม" })).not.toBeInTheDocument();
     auth.emit({ uid: "alice", displayName: "Alice", email: "a@x.com" });
     await screen.findByRole("button", { name: /บัญชี Alice/ });
-    await waitFor(() => expect(card("รายได้รวม")).toHaveTextContent("฿0.00")); // แผนใหม่บนคลาวด์
+    await expectPlanIncome("฿0.00"); // แผนใหม่บนคลาวด์
     observer.disconnect();
     expect(guestDataEverShown).toBe(false);
   });
@@ -170,7 +180,7 @@ describe("CP-8: เข้าสู่ระบบ + ย้ายแผนขึ�
     const guest = new InMemoryPlanRepository();
     await guest.save(goldenPlan1);
     render(<KarngeinApp auth={null} repository={guest} activePlanStore={new InMemoryActivePlanStore()} ctx={createTestContext()} />);
-    await screen.findByRole("heading", { name: "แหล่งรายได้" });
+    await openPlanTab();
     expect(screen.queryByRole("button", { name: /เข้าสู่ระบบ/ })).not.toBeInTheDocument();
   });
 });

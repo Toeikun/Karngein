@@ -24,7 +24,7 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
     usePlan(options);
   const online = useOnlineStatus();
   const [period, setPeriod] = useState<Period>({ kind: "monthly" });
-  const [tab, setTab] = useState<WorkspaceTab>("plan");
+  const [tab, setTab] = useState<WorkspaceTab>("actual"); // หน้าแรก = รายการ (แบบแอปจดรายจ่าย)
   const summary = plan ? summarize(plan, period) : null;
 
   return (
@@ -41,26 +41,29 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
         <LoadingState message="กำลังโหลดแผน…" stage={mode === "cloud" ? "โหลดแผนจากคลาวด์" : "โหลดแผนในเครื่อง"} />
       ) : (
         <>
-          <PlanBar
-            plan={plan}
-            plans={plans}
-            run={run}
-            storageNote={
-              mode === "cloud"
-                ? "ข้อมูลซิงก์กับบัญชี Google ของคุณ — เปิดจากมือถือหรือคอมฯ ก็เห็นเหมือนกัน (ออฟไลน์ก็แก้ได้ จะซิงก์เมื่อต่อเน็ต)"
-                : "ข้อมูลเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น — ส่งออกไฟล์สำรองไว้ก่อนล้างข้อมูลเว็บหรือเปลี่ยนเครื่อง หรือเข้าสู่ระบบเพื่อซิงก์ข้ามเครื่อง"
-            }
-            onSwitch={switchPlan}
-            onCreate={() => createNewPlan()}
-            onDelete={deleteCurrentPlan}
-            onImport={importPlanFile}
-            onExport={exportCurrentPlan}
-          />
-          <WorkspaceTabs tab={tab} onChange={setTab} />
+          {/* มือถือ: จัดการแผนอยู่ในแท็บ "เพิ่มเติม" (หน้าแรกจะได้โล่ง) / คอมฯ: แสดงด้านบนตลอด */}
+          <div className={tab === "more" ? "" : "hidden lg:block"}>
+            <PlanBar
+              plan={plan}
+              plans={plans}
+              run={run}
+              storageNote={
+                mode === "cloud"
+                  ? "ข้อมูลซิงก์กับบัญชี Google ของคุณ — เปิดจากมือถือหรือคอมฯ ก็เห็นเหมือนกัน (ออฟไลน์ก็แก้ได้ จะซิงก์เมื่อต่อเน็ต)"
+                  : "ข้อมูลเก็บอยู่ในเบราว์เซอร์นี้เท่านั้น — ส่งออกไฟล์สำรองไว้ก่อนล้างข้อมูลเว็บหรือเปลี่ยนเครื่อง หรือเข้าสู่ระบบเพื่อซิงก์ข้ามเครื่อง"
+              }
+              onSwitch={switchPlan}
+              onCreate={() => createNewPlan()}
+              onDelete={deleteCurrentPlan}
+              onImport={importPlanFile}
+              onExport={exportCurrentPlan}
+            />
+          </div>
           <PlanContent
             key={plan.id} // สลับแผน → โหลดรายการของแผนใหม่ทั้งหมด
             plan={plan}
             tab={tab}
+            onTabChange={setTab}
             run={run}
             period={period}
             onPeriodChange={setPeriod}
@@ -71,42 +74,5 @@ export function PlanWorkspace({ mode, account, ...options }: PlanWorkspaceProps)
         </>
       )}
     </>
-  );
-}
-
-function WorkspaceTabs({ tab, onChange }: { tab: WorkspaceTab; onChange: (tab: WorkspaceTab) => void }) {
-  const tabs: { id: WorkspaceTab; label: string; icon: string }[] = [
-    { id: "plan", label: "วางแผน", icon: "🗺️" },
-    { id: "actual", label: "รายการ", icon: "🧾" },
-    { id: "goals", label: "เป้าหมาย", icon: "🎯" },
-  ];
-  // มือถือ: แถบล่างติดจอแบบแอป (D19) / คอมฯ (lg): แท็บด้านบนเหมือนเดิม
-  return (
-    <nav
-      role="tablist"
-      aria-label="มุมมองของแผน"
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:rounded-2xl lg:border-0 lg:bg-slate-200/70 lg:p-1"
-    >
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          role="tab"
-          aria-selected={tab === t.id}
-          onClick={() => {
-            onChange(t.id);
-            window.scrollTo?.({ top: 0 });
-          }}
-          className={`flex min-h-14 flex-1 flex-col items-center justify-center rounded-xl text-xs font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
-            tab === t.id ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
-          }`}
-        >
-          <span aria-hidden className="text-lg lg:text-base">
-            {t.icon}
-          </span>
-          {t.label}
-        </button>
-      ))}
-    </nav>
   );
 }

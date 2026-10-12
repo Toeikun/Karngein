@@ -2,15 +2,16 @@ import { expect, test } from "@playwright/test";
 
 test("ปุ่ม + ลงรายการเร็ว + แป้นคิดเลข + เดาหมวด + ค้นหา (มือถือ/คอมฯ)", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ — แม่แบบอยู่แท็บวางแผน
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click();
 
-  // แถบแท็บ: มือถือติดด้านล่างจอ / คอมฯ อยู่ด้านบน
-  const nav = page.getByRole("tablist", { name: "มุมมองของแผน" });
+  // แถบเมนูหลัก: มือถือติดด้านล่างจอ / คอมฯ อยู่ด้านบน
+  const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
   const box = (await nav.boundingBox())!;
   const viewport = page.viewportSize()!;
   if (viewport.width < 1024) {
     expect(await nav.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
-    expect(box.y).toBeGreaterThan(viewport.height * 0.85); // อยู่ช่วงล่างสุดของจอ
+    expect(Math.abs(box.y + box.height - viewport.height)).toBeLessThanOrEqual(1); // ชิดขอบล่างจริง ไม่มีช่องให้เนื้อหาโผล่
   }
   else expect(box.y).toBeLessThan(viewport.height / 2);
 

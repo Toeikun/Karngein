@@ -8,6 +8,7 @@ import { InMemoryPlanRepository } from "@/infrastructure/storage/InMemoryPlanRep
 import { InMemoryTransactionRepository } from "@/infrastructure/storage/InMemoryTransactionRepository";
 import { KarngeinApp } from "@/presentation/components/KarngeinApp";
 import { goldenPlan3 } from "../../domain/__tests__/goldenData";
+import { openPlanTab } from "./openPlanTab";
 
 function contextAt(iso: string): UseCaseContext {
   let n = 0;
@@ -29,7 +30,7 @@ async function open(history: Transaction[] = []) {
       ctx={contextAt("2026-10-05T12:00:00.000Z")}
     />,
   );
-  await screen.findByRole("heading", { name: "แหล่งรายได้" });
+  await openPlanTab();
   return { user, transactions };
 }
 
@@ -97,14 +98,14 @@ describe("CP-12.1: ปุ่ม + ลงรายการเร็ว (ใช�
 
   it("พิมพ์สูตรในช่องจำนวนเงินได้เลย (ไม่ต้องใช้แป้น) / สูตรผิด → เตือน", async () => {
     const { user, transactions } = await open();
-    await user.click(screen.getByRole("tab", { name: "รายการ" }));
-    const form = await screen.findByRole("form", { name: "ลงรายการใหม่" });
+    await user.click(screen.getByRole("button", { name: "ลงรายการเร็ว" }));
+    const form = screen.getByRole("form", { name: "ลงรายการเร็ว" });
     await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), "120+");
     await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
     expect(within(form).getByRole("alert")).toHaveTextContent("สูตรยังไม่จบ");
     await user.type(within(form).getByLabelText("จำนวนเงินรายการ"), "35*2");
     await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
-    await within(form).findByText("บันทึกแล้ว ✓");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect((await transactions.list(goldenPlan3.id))[0].amount).toBe(190);
   });
 });
@@ -117,8 +118,8 @@ describe("CP-12.1: เดาหมวดจากที่เคยจด", () =
 
   it("พิมพ์ร้านที่เคยจด → เลือกกลุ่มให้เอง + บอกว่าเดาจากอะไร", async () => {
     const { user } = await open(history);
-    await user.click(screen.getByRole("tab", { name: "รายการ" }));
-    const form = await screen.findByRole("form", { name: "ลงรายการใหม่" });
+    await user.click(screen.getByRole("button", { name: "ลงรายการเร็ว" }));
+    const form = screen.getByRole("form", { name: "ลงรายการเร็ว" });
     await user.type(within(form).getByLabelText("ร้าน / ผู้รับ"), "starbucks");
     expect(within(form).getByLabelText("ผูกกับกลุ่มในแผน")).toHaveValue("grp-fun");
     expect(within(form).getByText(/เดาจากร้านที่เคยจด/)).toBeInTheDocument();
@@ -126,8 +127,8 @@ describe("CP-12.1: เดาหมวดจากที่เคยจด", () =
 
   it("ผู้ใช้เลือกกลุ่มเองแล้ว → พิมพ์ต่อก็ไม่เดาทับ", async () => {
     const { user } = await open(history);
-    await user.click(screen.getByRole("tab", { name: "รายการ" }));
-    const form = await screen.findByRole("form", { name: "ลงรายการใหม่" });
+    await user.click(screen.getByRole("button", { name: "ลงรายการเร็ว" }));
+    const form = screen.getByRole("form", { name: "ลงรายการเร็ว" });
     await user.selectOptions(within(form).getByLabelText("ผูกกับกลุ่มในแผน"), "grp-emergency");
     await user.type(within(form).getByLabelText("ร้าน / ผู้รับ"), "ร้านข้าวมันไก่");
     expect(within(form).getByLabelText("ผูกกับกลุ่มในแผน")).toHaveValue("grp-emergency");
@@ -163,8 +164,21 @@ describe("CP-12.1: ค้นหา / กรอง คร่อมทุกรอ
     await user.type(search, "300");
     expect(screen.getByRole("button", { name: "แก้ไข กับข้าว" })).toBeInTheDocument();
     await user.clear(search);
+    await user.click(screen.getByRole("button", { name: "ตัวกรอง" })); // ตัวกรองพับไว้
     await user.selectOptions(screen.getByLabelText("กรองประเภท"), "income");
     expect(screen.getByRole("heading", { name: "ผลการค้นหา (1)" })).toBeInTheDocument();
+  });
+
+  it("พิมพ์ค้นหาตัวแรก (สลับเป็นมุมมองผลค้นหา) → โฟกัสยังอยู่ในช่องค้นหา พิมพ์ต่อได้", async () => {
+    const { user } = await open(history);
+    await user.click(screen.getByRole("tab", { name: "รายการ" }));
+    const search = await screen.findByLabelText("ค้นหารายการ");
+    await user.click(search);
+    await user.keyboard("s");
+    expect(screen.getByLabelText("ค้นหารายการ")).toBe(search); // ช่องเดิม ไม่ถูกสร้างใหม่
+    expect(search).toHaveFocus();
+    await user.keyboard("tarbucks");
+    expect(search).toHaveValue("starbucks");
   });
 
   it("ค้นไม่เจอ → บอกว่าไม่พบ (ไม่ใช่ 'ยังไม่มีรายการในรอบนี้')", async () => {

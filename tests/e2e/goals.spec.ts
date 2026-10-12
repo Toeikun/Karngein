@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("เป้าหมาย: เงินเดือน × 12 → ลงเงินออมเข้าเป้า → ความคืบหน้าเพิ่ม → รีโหลดแล้วยังอยู่", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ — แม่แบบอยู่แท็บวางแผน
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click(); // เงินเดือน 30,000
 
   await page.getByRole("tab", { name: "เป้าหมาย" }).click();
@@ -18,15 +19,13 @@ test("เป้าหมาย: เงินเดือน × 12 → ลงเ�
   await expect(card.getByText("10.0%")).toBeVisible(); // 18,000 / 180,000
 
   // ลงเงินออมเข้าเป้า 9,000
-  await page.getByRole("tab", { name: "รายการ" }).click();
-  const tx = page.getByRole("form", { name: "ลงรายการใหม่" });
+  await page.getByRole("button", { name: "ลงรายการเร็ว" }).click();
+  const tx = page.getByRole("dialog", { name: "ลงรายการเร็ว" });
   await tx.getByLabel("จำนวนเงินรายการ").fill("9000");
   await tx.getByLabel("นับเข้าเป้าหมาย").selectOption({ label: "เป้าหมาย: เงินออมฉุกเฉิน" });
   await expect(tx.getByText("หมวด: เงินสำรองฉุกเฉิน")).toBeVisible();
   await tx.getByRole("button", { name: "บันทึกรายการ" }).click();
-  await expect(tx.getByText("บันทึกแล้ว ✓")).toBeVisible();
-
-  await page.getByRole("tab", { name: "เป้าหมาย" }).click();
+  await expect(tx).toBeHidden(); // บันทึกแล้วแผ่นปิดเอง ยังอยู่แท็บเป้าหมาย
   await expect(card.getByText("15.0%")).toBeVisible(); // 27,000 / 180,000
   await expect(card.getByText(/ออมเข้าเป้าแล้ว 1 ครั้ง/)).toBeVisible();
 

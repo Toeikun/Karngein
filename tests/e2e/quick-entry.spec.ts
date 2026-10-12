@@ -13,7 +13,12 @@ test("ปุ่ม + ลงรายการเร็ว + แป้นคิ�
     expect(await nav.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
     expect(Math.abs(box.y + box.height - viewport.height)).toBeLessThanOrEqual(1); // ชิดขอบล่างจริง ไม่มีช่องให้เนื้อหาโผล่
   }
-  else expect(box.y).toBeLessThan(viewport.height / 2);
+  else {
+    expect(box.y).toBeLessThan(viewport.height / 2);
+    // คอมฯ: แถบแท็บต้องมีระยะห่างจากเนื้อหาด้านล่าง (เคยชิดกัน 0px)
+    const gap = await nav.evaluate((el) => el.nextElementSibling!.getBoundingClientRect().top - el.getBoundingClientRect().bottom);
+    expect(gap).toBeGreaterThanOrEqual(12);
+  }
 
   // ลงรายการแรกผ่านปุ่ม + ด้วยแป้นในแอป
   await page.getByRole("button", { name: "ลงรายการเร็ว" }).click();

@@ -6,7 +6,7 @@
  * เป็น "ศูนย์กลางข้อมูลรายการจริง": โหลดรายการครั้งเดียว (useTransactions) แล้วส่งให้
  *   แท็บรายการ · แท็บเป้าหมาย · ปุ่ม + ลงรายการเร็ว  → ข้อมูลชุดเดียวกัน ไม่เพี้ยนกัน
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { UseCaseContext } from "@/application/context";
 import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import type { Period } from "@/domain/entities/Period";
@@ -44,6 +44,16 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
   const tx = useTransactions(transactionRepository, plan.id, ctx);
   const [quickAdd, setQuickAdd] = useState(false);
   const today = todayIso(ctx.now());
+
+  // แท็บ "เพิ่มเติม" มีแค่บนมือถือ — ขยายหน้าจอเป็นคอมฯ ระหว่างอยู่แท็บนี้ → กลับไปหน้ารายการ
+  useEffect(() => {
+    if (tab !== "more" || typeof window.matchMedia !== "function") return;
+    const desktop = window.matchMedia("(min-width: 64rem)");
+    const leave = () => desktop.matches && onTabChange("actual");
+    leave();
+    desktop.addEventListener("change", leave);
+    return () => desktop.removeEventListener("change", leave);
+  }, [tab, onTabChange]);
 
   const needsTransactions = tab === "actual" || tab === "goals";
   let body;
@@ -105,7 +115,7 @@ function BottomNav({ tab, onChange, onAdd, addDisabled }: { tab: WorkspaceTab; o
   return (
     <nav
       aria-label="เมนูหลัก"
-      className="fixed inset-x-0 bottom-0 z-30 mb-0 flex items-end border-t border-slate-200 bg-white/95 px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:items-center lg:rounded-2xl lg:border-0 lg:bg-slate-200/70 lg:p-1"
+      className="fixed inset-x-0 bottom-0 z-30 flex max-lg:mb-0 items-end border-t border-slate-200 bg-white/95 px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur lg:static lg:items-center lg:rounded-2xl lg:border-0 lg:bg-slate-200/70 lg:p-1"
     >
       <div role="tablist" aria-label="มุมมองของแผน" className="contents">
         {TABS.map((t) => (

@@ -137,12 +137,12 @@ export function WalletsView({ plan, run, today, tx, onQuickAdd }: WalletsViewPro
         </p>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-2">{active.map(card)}</div>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{active.map(card)}</div>
 
       {archived.length > 0 && (
         <details className="rounded-3xl bg-white/60 p-3 ring-1 ring-slate-100">
           <summary className="flex min-h-11 cursor-pointer items-center px-1 text-sm font-medium text-slate-600">กระเป๋าที่ซ่อน ({archived.length})</summary>
-          <div className="mt-2 grid gap-3 lg:grid-cols-2">{archived.map(card)}</div>
+          <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">{archived.map(card)}</div>
         </details>
       )}
     </div>

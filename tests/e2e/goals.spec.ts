@@ -1,13 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** คอมฯ: แท็บเป้าหมาย / มือถือ: อยู่ใน "เพิ่มเติม" (D22) */
+/** เป้าหมายมีแท็บของตัวเองทั้งมือถือและคอมฯ (D24) */
 async function openGoals(page: Page) {
-  const tab = page.getByRole("tab", { name: "เป้าหมาย" });
-  if (await tab.isVisible()) await tab.click();
-  else {
-    await page.getByRole("tab", { name: "เพิ่มเติม" }).click();
-    await page.getByRole("button", { name: /เป้าหมาย/ }).click();
-  }
+  await page.getByRole("tab", { name: "เป้าหมาย" }).click();
 }
 
 test("เป้าหมาย: เงินเดือน × 12 → ลงเงินออมเข้าเป้า → ความคืบหน้าเพิ่ม → รีโหลดแล้วยังอยู่", async ({ page }) => {

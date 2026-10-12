@@ -209,11 +209,4 @@ describe("CP-12.2: แท็บกระเป๋า", () => {
     fireEvent.change(screen.getByLabelText("กรองประเภท"), { target: { value: "transfer" } });
     expect(screen.getByRole("heading", { name: "ผลการค้นหา (1)" })).toBeInTheDocument();
   });
-
-  it("มือถือ: เป้าหมายเปิดได้จากแท็บ 'เพิ่มเติม'", async () => {
-    const { user } = await open();
-    await user.click(screen.getByRole("tab", { name: "เพิ่มเติม" }));
-    await user.click(screen.getByRole("button", { name: /เป้าหมาย/ }));
-    expect(await screen.findByRole("button", { name: "+ ตั้งเป้าหมายใหม่" })).toBeInTheDocument();
-  });
 });

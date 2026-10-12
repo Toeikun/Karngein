@@ -54,8 +54,9 @@ export function NotificationBell({ notices, onPayCard }: { notices: Notice[]; on
           </span>
         )}
       </button>
+      {/* มือถือ: กว้างเต็มจอ เว้นขอบ 16px (เคยยึดขอบขวาของกระดิ่งแล้วล้นจอด้านซ้ายบนจอ 360px) */}
       {open && (
-        <div role="region" aria-label="รายการแจ้งเตือน" className="absolute right-0 top-full z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] space-y-2 rounded-3xl bg-white p-3 shadow-xl ring-1 ring-slate-200">
+        <div role="region" aria-label="รายการแจ้งเตือน" className="z-40 space-y-2 rounded-3xl bg-white p-3 shadow-xl ring-1 ring-slate-200 max-sm:fixed max-sm:inset-x-4 max-sm:top-20 sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-80">
           <h2 className="px-1 text-sm font-semibold text-slate-800">การแจ้งเตือน</h2>
           {notices.length === 0 ? (
             <p className="px-1 pb-1 text-sm text-slate-500">ไม่มีเรื่องต้องห่วง 👍</p>

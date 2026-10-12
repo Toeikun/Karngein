@@ -51,3 +51,26 @@ test("ทุกแท็บ: กล่องไม่ทับ/ไม่ชิ�
     expect(problems, `แท็บ ${name}`).toEqual([]);
   }
 });
+
+test("จอแคบ 360px (มือถือ Android ทั่วไป): ทุกแท็บไม่ล้นแนวนอน และปุ่ม + อยู่กึ่งกลาง", async ({ page }) => {
+  test.skip(page.viewportSize()!.width >= 1024, "เฉพาะมือถือ");
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto("/");
+  await page.getByRole("tab", { name: "วางแผน" }).click();
+  await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click();
+  // มีรายการ → การ์ด/กราฟ/ปฏิทินในแท็บสรุปแสดงครบ (เคยดันหน้ากว้าง 373px)
+  await page.getByRole("button", { name: "ลงรายการเร็ว" }).click();
+  const sheet = page.getByRole("dialog", { name: "ลงรายการเร็ว" });
+  await sheet.getByLabel("จำนวนเงินรายการ").fill("9762");
+  await sheet.getByLabel("ผูกกับกลุ่มในแผน").selectOption({ label: "รายจ่ายประจำ" });
+  await sheet.getByRole("button", { name: "บันทึกรายการ" }).click();
+  await expect(sheet).toBeHidden();
+
+  for (const name of await page.getByRole("tab").filter({ visible: true }).allTextContents()) {
+    await page.getByRole("tab", { name: name.replace(/^\S+?(?=[ก-๙])/u, "") }).click();
+    const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+    expect(scroll, `แท็บ ${name}`).toBeLessThanOrEqual(client);
+  }
+  const plus = (await page.getByRole("button", { name: "ลงรายการเร็ว" }).boundingBox())!;
+  expect(Math.abs(plus.x + plus.width / 2 - 180)).toBeLessThanOrEqual(1);
+});

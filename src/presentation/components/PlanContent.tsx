@@ -76,14 +76,14 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
   const needsTransactions = tab === "actual" || tab === "wallets" || tab === "summary" || tab === "goals";
   let body;
   if (tab === "more") {
-    body = <MoreView onOpen={onTabChange} />;
+    body = <MoreView />;
   } else if (tab === "plan") {
     body = (
       <>
         <SummaryCards summary={summary} />
         <PeriodSwitcher period={period} onChange={onPeriodChange} />
         <PresetBar plan={plan} run={run} />
-        <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_3fr]">
           <IncomeList incomes={plan.incomes} run={run} />
           <ExpenseList expenses={plan.expenses} period={period} run={run} />
         </div>
@@ -132,15 +132,15 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
   );
 }
 
-// มือถือ (D23): รายการ · กระเป๋า · สรุป · [+] · วางแผน · เพิ่มเติม (เป้าหมายอยู่ใน "เพิ่มเติม" — D22)
+// มือถือ (D24): รายการ · กระเป๋า · สรุป · [+] · วางแผน · เป้าหมาย · เพิ่มเติม — 7 ช่องเท่ากัน ปุ่ม + อยู่กึ่งกลางพอดี
 // คอมฯ: รายการ · กระเป๋า · สรุป · เป้าหมาย · วางแผน · [+ ลงรายการ]
-const TABS: { id: WorkspaceTab; label: string; icon: string; order: string; only?: "mobile" | "desktop" }[] = [
+const TABS: { id: WorkspaceTab; label: string; icon: string; order: string; only?: "mobile" }[] = [
   { id: "actual", label: "รายการ", icon: "🧾", order: "order-1" },
   { id: "wallets", label: "กระเป๋า", icon: "👛", order: "order-2" },
   { id: "summary", label: "สรุป", icon: "📊", order: "order-3" },
-  { id: "goals", label: "เป้าหมาย", icon: "🎯", order: "order-4", only: "desktop" },
   { id: "plan", label: "วางแผน", icon: "🗺️", order: "order-5" },
-  { id: "more", label: "เพิ่มเติม", icon: "⋯", order: "order-6", only: "mobile" },
+  { id: "goals", label: "เป้าหมาย", icon: "🎯", order: "order-6 lg:order-4" },
+  { id: "more", label: "เพิ่มเติม", icon: "⋯", order: "order-7", only: "mobile" },
 ];
 
 /**
@@ -166,18 +166,18 @@ function BottomNav({ tab, onChange, onAdd, addDisabled }: { tab: WorkspaceTab; o
               onChange(t.id);
               window.scrollTo({ top: 0 });
             }}
-            className={`${t.order} ${t.only === "mobile" ? "lg:hidden" : t.only === "desktop" ? "max-lg:hidden" : ""} flex min-h-13 min-w-0 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
-              tab === t.id || (t.id === "more" && tab === "goals") ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
+            className={`${t.order} ${t.only === "mobile" ? "lg:hidden" : ""} flex min-h-13 min-w-0 flex-1 basis-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold whitespace-nowrap transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
+              tab === t.id ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
             }`}
           >
-            <span aria-hidden className={`grid h-6 w-10 place-items-center rounded-full text-base lg:h-auto lg:w-auto lg:text-base ${tab === t.id || (t.id === "more" && tab === "goals") ? "bg-indigo-100 lg:bg-transparent" : ""}`}>
+            <span aria-hidden className={`grid h-6 w-10 place-items-center rounded-full text-base lg:h-auto lg:w-auto lg:text-base ${tab === t.id ? "bg-indigo-100 lg:bg-transparent" : ""}`}>
               {t.icon}
             </span>
             {t.label}
           </button>
         ))}
       </div>
-      <div className="order-4 flex flex-1 justify-center lg:order-last lg:flex-none">
+      <div className="order-4 flex flex-1 basis-0 justify-center lg:order-last lg:flex-none lg:basis-auto">
         <button
           type="button"
           onClick={onAdd}
@@ -193,27 +193,13 @@ function BottomNav({ tab, onChange, onAdd, addDisabled }: { tab: WorkspaceTab; o
   );
 }
 
-/** แท็บ "เพิ่มเติม" (มือถือ): ทางไปเป้าหมาย + จัดการแผน (การ์ดจัดการแผนแสดงด้านบนโดย PlanWorkspace) */
-function MoreView({ onOpen }: { onOpen: (tab: WorkspaceTab) => void }) {
+/** แท็บ "เพิ่มเติม" (มือถือ): จัดการแผน (การ์ดจัดการแผนแสดงด้านบนโดย PlanWorkspace) */
+function MoreView() {
   return (
     <section aria-labelledby="more-heading" className="space-y-3 rounded-3xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-100">
       <h2 id="more-heading" className="text-base font-semibold text-slate-800">
         เพิ่มเติม
       </h2>
-      <button
-        type="button"
-        onClick={() => onOpen("goals")}
-        className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-indigo-50 px-4 text-left font-medium text-indigo-800 hover:bg-indigo-100"
-      >
-        <span aria-hidden className="text-2xl">
-          🎯
-        </span>
-        <span className="flex-1">
-          เป้าหมาย
-          <span className="block text-xs font-normal text-indigo-600">เงินออมฉุกเฉิน · เที่ยว · ดาวน์บ้าน</span>
-        </span>
-        <span aria-hidden>›</span>
-      </button>
       <p>สลับแผน · สร้างแผนใหม่ · นำเข้า/ส่งออกไฟล์สำรอง · ลบแผน — อยู่ในการ์ดด้านบน</p>
       <p>เข้าสู่ระบบ Google (มุมขวาบน) เพื่อซิงก์ข้อมูลระหว่างมือถือกับคอมฯ</p>
     </section>

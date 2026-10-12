@@ -4,19 +4,24 @@ test("สรุป: แถบล่างพอดีจอ / ลงรายก
   await page.goto("/");
   const viewport = page.viewportSize()!;
 
-  // แถบเมนู: มือถือ 6 ช่อง (D23) ทุกปุ่ม ≥ 44px และไม่ล้นจอ
+  // แถบเมนู: มือถือ 7 ช่องเท่ากัน ปุ่ม + อยู่กึ่งกลางจอ (D24) / ทุกปุ่ม ≥ 44px และไม่ล้นจอ
   const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
   const sizes = await nav.evaluate((el) =>
     [...el.querySelectorAll("button")].filter((b) => b.checkVisibility()).map((b) => {
       const r = b.getBoundingClientRect();
-      return { w: r.width, h: r.height, right: r.right };
+      return { w: r.width, h: r.height, right: r.right, overflow: b.scrollWidth > b.clientWidth };
     }),
   );
-  expect(sizes).toHaveLength(6); // มือถือ: 5 แท็บ (มี "เพิ่มเติม") + ปุ่ม + / คอมฯ: 5 แท็บ (มี "เป้าหมาย") + ปุ่ม +
+  expect(sizes).toHaveLength(viewport.width < 1024 ? 7 : 6); // มือถือ: 6 แท็บ + ปุ่ม + / คอมฯ: 5 แท็บ (ไม่มี "เพิ่มเติม") + ปุ่ม +
+  if (viewport.width < 1024) {
+    const plus = (await page.getByRole("button", { name: "ลงรายการเร็ว" }).boundingBox())!;
+    expect(Math.abs(plus.x + plus.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+  }
   for (const s of sizes) {
     expect(s.w).toBeGreaterThanOrEqual(44);
     expect(s.h).toBeGreaterThanOrEqual(44);
     expect(s.right).toBeLessThanOrEqual(viewport.width);
+    expect(s.overflow).toBe(false); // ชื่อแท็บไม่ล้นปุ่ม
   }
 
   await page.getByRole("tab", { name: "วางแผน" }).click();
@@ -50,11 +55,14 @@ test("สรุป: แถบล่างพอดีจอ / ลงรายก
   await calendar.getByRole("button", { name: new RegExp(`^${today.getDate()} \\S+ ${today.getFullYear()} จ่าย ฿3,135.00`) }).click();
   await expect(page.getByRole("heading", { name: /รายการวันที่ .* \(3\)/ })).toBeVisible();
 
-  // กระดิ่ง: เปิดได้ และกล่องไม่ล้นจอ
+  // กระดิ่ง: เปิดได้ และกล่องไม่ล้นจอ — ตรวจที่จอแคบ 360px ด้วย (เคยล้นซ้าย)
   await page.getByRole("button", { name: /การแจ้งเตือน/ }).click();
   const panel = page.getByRole("region", { name: "รายการแจ้งเตือน" });
   await expect(panel).toBeVisible();
-  const box = (await panel.boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  for (const width of viewport.width < 1024 ? [viewport.width, 360] : [viewport.width]) {
+    await page.setViewportSize({ width, height: viewport.height });
+    const box = (await panel.boundingBox())!;
+    expect(box.x, `กว้าง ${width}`).toBeGreaterThanOrEqual(8);
+    expect(box.x + box.width, `กว้าง ${width}`).toBeLessThanOrEqual(width - 8);
+  }
 });

@@ -61,7 +61,7 @@ export function ActualView({ plan, run, today, tx, onQuickAdd }: ActualViewProps
       {/* บัตรเครดิตใกล้/เกินกำหนดชำระ (R28) — เห็นทันทีที่เปิดแอป */}
       <DueAlerts alerts={dueAlerts(plan, transactions, today)} onPay={(a) => onQuickAdd(payCardPreset(plan, a.wallet, a.statement.remaining))} />
       {/* มือถือ: การ์ด → ค้นหา + รายการ → ตั้งรอบ / คอมฯ: ซ้าย = การ์ด + ตั้งรอบ, ขวา = ค้นหา + รายการ */}
-      <div className="grid gap-5 lg:grid-cols-[2fr_3fr] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_3fr] lg:items-start">
         <div className={searching ? "hidden" : ""}>
           {!searching && (
             <BalanceHero

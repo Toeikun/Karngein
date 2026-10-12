@@ -77,7 +77,7 @@ export function SummaryView({ plan, today, tx }: SummaryViewProps) {
         </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
         <div className="space-y-5">
           {summary.count > 0 && (
             <Card title="ข้อสังเกต">

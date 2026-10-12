@@ -41,6 +41,9 @@ async function openActual(plan: Plan = { ...goldenPlan3, goals: [] }) {
   return { user, repository, transactions };
 }
 
+/** เทียบงบ + Sankey ตามจริงย้ายไปแท็บ "สรุป" (Phase 12.3) */
+const openSummary = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole("tab", { name: "สรุป" }));
+
 const card = (name: string) => screen.getByRole("status", { name });
 const cycleShown = () => screen.getByRole("status", { name: "รอบที่แสดง" });
 
@@ -86,8 +89,10 @@ describe("CP-11.3 + 12.1b: หน้า รายการ — สถานก�
     expect(card("จ่ายจริง")).toHaveTextContent("฿3,050.00");
     expect(card("คงเหลือรอบนี้")).toHaveTextContent("฿41,050.00");
     expect(screen.getByRole("heading", { name: "รายการในรอบนี้ (4)" })).toBeInTheDocument();
+    await openSummary(user);
     expect(screen.getByTestId("budget-grp-food")).toHaveTextContent("฿550.00 / ฿8,000.00 (6.9%)");
     expect(screen.getByTestId("budget-grp-fun")).toHaveTextContent("฿2,500.00 / ฿2,000.00 (125.0%) เกินงบ");
+    await user.click(screen.getByRole("tab", { name: "รายการ" }));
 
     // รอบถัดไป: มีแค่เงินเดือน 25 ต.ค.
     await user.click(screen.getByRole("button", { name: "รอบถัดไป" }));
@@ -133,6 +138,7 @@ describe("CP-11.3 + 12.1b: หน้า รายการ — สถานก�
     await user.selectOptions(within(form).getByLabelText("หมวดรายการ"), "wants");
     await user.click(within(form).getByRole("button", { name: "บันทึกรายการ" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await openSummary(user);
     expect(screen.getByText(/รายจ่ายที่ไม่ได้ผูกกับกลุ่ม/)).toHaveTextContent("฿120.00");
   });
 
@@ -167,9 +173,10 @@ describe("CP-11.3 + 12.1b: หน้า รายการ — สถานก�
   });
 });
 
-describe("ผังการไหลของเงิน (ตามจริง) — ใช้ FlowSection ตัวเดียวกับแท็บวางแผน", () => {
+describe("ผังการไหลของเงิน (ตามจริง) — อยู่แท็บสรุป ใช้ FlowSection ตัวเดียวกับแท็บวางแผน", () => {
   it("ยังไม่มีรายการ → ข้อความแนะนำ / ลงรายการแล้ว → ผังแสดงข้อมูลจริงของรอบ", async () => {
     const { user } = await openActual();
+    await openSummary(user);
     expect(screen.getByRole("heading", { name: "ผังการไหลของเงิน (ตามจริง)" })).toBeInTheDocument();
     expect(screen.getByText(/ลงรายการของรอบนี้แล้วผังจะปรากฏที่นี่/)).toBeInTheDocument();
 
@@ -191,6 +198,7 @@ describe("ผังการไหลของเงิน (ตามจริ�
   it("รายจ่ายก่อนมีรายรับในรอบ → มีหมายเหตุ และผังแสดง 'เงินขาด'", async () => {
     const { user } = await openActual();
     await record(user, { amount: "300", date: "2026-10-02", group: "grp-food" });
+    await openSummary(user);
     expect(screen.getByText(/รอบนี้ยังไม่มีรายรับ/)).toBeInTheDocument();
     const chart = screen.getByRole("img", { name: "แผนภาพการไหลของเงิน" });
     expect(chart.querySelector('[data-node-id="deficit"]')).not.toBeNull();

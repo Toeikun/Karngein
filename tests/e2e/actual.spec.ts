@@ -29,7 +29,7 @@ async function addTx(
   await expect(sheet).toBeHidden();
 }
 
-test("รายการ: ตั้งรอบ → ลงรายรับ/รายจ่าย → เทียบงบ → รอบก่อนหน้า → รีโหลดแล้วข้อมูลยังอยู่", async ({ page }) => {
+test("รายการ: ตั้งรอบ → ลงรายรับ/รายจ่าย → เทียบงบ (แท็บสรุป) → รอบก่อนหน้า → รีโหลดแล้วข้อมูลยังอยู่", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "วางแผน" }).click(); // แอปเปิดมาที่แท็บรายการ — แม่แบบอยู่แท็บวางแผน
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click(); // มีรายได้ + กลุ่มรายจ่ายให้ผูก
@@ -50,7 +50,10 @@ test("รายการ: ตั้งรอบ → ลงรายรับ/ร
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
   await expect(card(page, "จ่ายจริง")).toHaveText("฿8,000.00");
   await expect(card(page, "คงเหลือรอบนี้")).toHaveText("฿36,100.00");
+  // เทียบงบรายกลุ่มอยู่แท็บสรุป (Phase 12.3)
+  await page.getByRole("tab", { name: "สรุป" }).click();
   await expect(page.getByText("฿8,000.00 / ฿19,050.00 (42.0%)")).toBeVisible();
+  await page.getByRole("tab", { name: "รายการ" }).click();
 
   await page.getByRole("button", { name: "รอบก่อนหน้า" }).click();
   await expect(txList(page).getByText("กาแฟเมื่อวาน")).toBeVisible();
@@ -61,7 +64,9 @@ test("รายการ: ตั้งรอบ → ลงรายรับ/ร
   await page.reload(); // แอปเปิดมาที่แท็บรายการเอง
   await expect(card(page, "รับจริง")).toHaveText("฿44,100.00");
   await expect(txList(page).getByText("ค่าเช่า")).toBeVisible();
-  await expect(page.getByRole("img", { name: "แผนภาพการไหลของเงิน" })).toBeVisible(); // ผังตามจริงแสดงหลังรีโหลด
+  await page.getByRole("tab", { name: "สรุป" }).click();
+  await expect(page.getByRole("img", { name: "แผนภาพการไหลของเงิน" })).toBeVisible(); // ผังตามจริง (แท็บสรุป) แสดงหลังรีโหลด
+  await page.getByRole("tab", { name: "รายการ" }).click();
 
   // มือถือ: ไม่มี scroll แนวนอน และปุ่ม/ช่องกรอก ≥ 44px
   const { overflow, smallest } = await page.evaluate(() => ({

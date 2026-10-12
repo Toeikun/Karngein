@@ -6,12 +6,15 @@
  * เป็น "ศูนย์กลางข้อมูลรายการจริง": โหลดรายการครั้งเดียว (useTransactions) แล้วส่งให้
  *   แท็บรายการ · แท็บกระเป๋า · แท็บเป้าหมาย · ปุ่ม + ลงรายการเร็ว  → ข้อมูลชุดเดียวกัน ไม่เพี้ยนกัน
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import type { UseCaseContext } from "@/application/context";
 import type { TransactionRepository } from "@/application/ports/TransactionRepository";
 import type { Period } from "@/domain/entities/Period";
-import type { Plan } from "@/domain/entities/Plan";
+import { cycleContaining } from "@/domain/entities/PayCycle";
+import { payCycleStartDayOf, walletsOf, type Plan } from "@/domain/entities/Plan";
 import type { TransactionInput } from "@/domain/entities/Transaction";
+import { notices } from "@/domain/services/cycleInsights";
 import type { PlanSummary } from "@/domain/services/summarize";
 import type { RunUseCase } from "../hooks/usePlan";
 import { useTransactions } from "../hooks/useTransactions";
@@ -21,14 +24,19 @@ import { QuickAddSheet } from "./actual/QuickAddSheet";
 import { ExpenseList } from "./expense/ExpenseList";
 import { PlanFlowSection } from "./flow/PlanFlowSection";
 import { GoalsView } from "./goals/GoalsView";
+import { NotificationBell } from "./insights/NotificationBell";
+import { SummaryView } from "./insights/SummaryView";
+import { HEADER_SLOT_ID } from "./layout/Header";
 import { IncomeList } from "./income/IncomeList";
 import { PeriodSwitcher } from "./period/PeriodSwitcher";
 import { PresetBar } from "./preset/PresetBar";
 import { SummaryCards } from "./summary/SummaryCards";
 import { LoadingState } from "./ui/LoadingState";
-import { WalletsView } from "./wallets/WalletsView";
+import { payCardPreset, WalletsView } from "./wallets/WalletsView";
 
-export type WorkspaceTab = "actual" | "wallets" | "goals" | "plan" | "more";
+const noSubscribe = () => () => {};
+
+export type WorkspaceTab = "actual" | "wallets" | "summary" | "goals" | "plan" | "more";
 
 interface PlanContentProps {
   plan: Plan;
@@ -58,7 +66,14 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
     return () => desktop.removeEventListener("change", leave);
   }, [tab, onTabChange]);
 
-  const needsTransactions = tab === "actual" || tab === "wallets" || tab === "goals";
+  // ช่องในหัวเว็บสำหรับกระดิ่ง — React อ่านค่าซ้ำหลัง commit จึงเจอช่องทันทีที่ Header ถูกวาดแล้ว
+  const headerSlot = useSyncExternalStore(
+    noSubscribe,
+    () => document.getElementById(HEADER_SLOT_ID),
+    () => null,
+  );
+
+  const needsTransactions = tab === "actual" || tab === "wallets" || tab === "summary" || tab === "goals";
   let body;
   if (tab === "more") {
     body = <MoreView onOpen={onTabChange} />;
@@ -85,6 +100,8 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
     );
   } else if (tab === "actual") {
     body = <ActualView plan={plan} run={run} today={today} tx={tx} onQuickAdd={setQuickAdd} />;
+  } else if (tab === "summary") {
+    body = <SummaryView plan={plan} today={today} tx={tx} />;
   } else if (tab === "wallets") {
     body = <WalletsView plan={plan} run={run} today={today} tx={tx} onQuickAdd={setQuickAdd} />;
   } else {
@@ -96,6 +113,18 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
       {/* อยู่ก่อนเนื้อหา: คอมฯ = แถบแท็บด้านบน / มือถือ = fixed ติดล่างจอ (ลำดับใน DOM ไม่มีผล) */}
       <BottomNav tab={tab} onChange={onTabChange} onAdd={() => setQuickAdd({})} addDisabled={tx.loading && needsTransactions} />
       {body}
+      {headerSlot &&
+        !tx.loading &&
+        createPortal(
+          <NotificationBell
+            notices={notices(plan, tx.transactions, cycleContaining(today, payCycleStartDayOf(plan)), today)}
+            onPayCard={(n) => {
+              const card = walletsOf(plan).find((w) => w.id === n.walletId);
+              if (card) setQuickAdd(payCardPreset(plan, card, n.amount ?? 0));
+            }}
+          />,
+          headerSlot,
+        )}
       {quickAdd && (
         <QuickAddSheet plan={plan} today={today} history={tx.transactions} preset={quickAdd} onSubmit={tx.add} onClose={() => setQuickAdd(null)} />
       )}
@@ -103,14 +132,15 @@ export function PlanContent({ plan, tab, onTabChange, run, period, onPeriodChang
   );
 }
 
-// มือถือ: รายการ · กระเป๋า · [+] · วางแผน · เพิ่มเติม (เป้าหมายอยู่ใน "เพิ่มเติม" — D22)
-// คอมฯ: รายการ · กระเป๋า · เป้าหมาย · วางแผน · [+ ลงรายการ]
+// มือถือ (D23): รายการ · กระเป๋า · สรุป · [+] · วางแผน · เพิ่มเติม (เป้าหมายอยู่ใน "เพิ่มเติม" — D22)
+// คอมฯ: รายการ · กระเป๋า · สรุป · เป้าหมาย · วางแผน · [+ ลงรายการ]
 const TABS: { id: WorkspaceTab; label: string; icon: string; order: string; only?: "mobile" | "desktop" }[] = [
   { id: "actual", label: "รายการ", icon: "🧾", order: "order-1" },
   { id: "wallets", label: "กระเป๋า", icon: "👛", order: "order-2" },
-  { id: "goals", label: "เป้าหมาย", icon: "🎯", order: "order-3", only: "desktop" },
-  { id: "plan", label: "วางแผน", icon: "🗺️", order: "order-4" },
-  { id: "more", label: "เพิ่มเติม", icon: "⋯", order: "order-5", only: "mobile" },
+  { id: "summary", label: "สรุป", icon: "📊", order: "order-3" },
+  { id: "goals", label: "เป้าหมาย", icon: "🎯", order: "order-4", only: "desktop" },
+  { id: "plan", label: "วางแผน", icon: "🗺️", order: "order-5" },
+  { id: "more", label: "เพิ่มเติม", icon: "⋯", order: "order-6", only: "mobile" },
 ];
 
 /**
@@ -136,24 +166,24 @@ function BottomNav({ tab, onChange, onAdd, addDisabled }: { tab: WorkspaceTab; o
               onChange(t.id);
               window.scrollTo({ top: 0 });
             }}
-            className={`${t.order} ${t.only === "mobile" ? "lg:hidden" : t.only === "desktop" ? "max-lg:hidden" : ""} flex min-h-14 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
+            className={`${t.order} ${t.only === "mobile" ? "lg:hidden" : t.only === "desktop" ? "max-lg:hidden" : ""} flex min-h-13 min-w-0 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold transition lg:min-h-11 lg:flex-row lg:gap-1 lg:text-sm ${
               tab === t.id || (t.id === "more" && tab === "goals") ? "text-indigo-700 lg:bg-white lg:shadow" : "text-slate-500"
             }`}
           >
-            <span aria-hidden className={`grid h-7 w-12 place-items-center rounded-full text-lg lg:h-auto lg:w-auto lg:text-base ${tab === t.id || (t.id === "more" && tab === "goals") ? "bg-indigo-100 lg:bg-transparent" : ""}`}>
+            <span aria-hidden className={`grid h-6 w-10 place-items-center rounded-full text-base lg:h-auto lg:w-auto lg:text-base ${tab === t.id || (t.id === "more" && tab === "goals") ? "bg-indigo-100 lg:bg-transparent" : ""}`}>
               {t.icon}
             </span>
             {t.label}
           </button>
         ))}
       </div>
-      <div className="order-3 flex flex-1 justify-center lg:order-last lg:flex-none">
+      <div className="order-4 flex flex-1 justify-center lg:order-last lg:flex-none">
         <button
           type="button"
           onClick={onAdd}
           disabled={addDisabled}
           aria-label="ลงรายการเร็ว"
-          className="-mt-6 grid size-16 place-items-center rounded-full bg-indigo-600 text-4xl leading-none text-white shadow-lg ring-4 ring-white hover:bg-indigo-700 disabled:opacity-60 lg:mt-0 lg:flex lg:h-11 lg:w-auto lg:gap-1 lg:rounded-xl lg:px-4 lg:text-sm lg:font-semibold lg:shadow lg:ring-0"
+          className="-mt-3 grid size-12 place-items-center rounded-full bg-indigo-600 text-3xl leading-none text-white shadow-lg ring-4 ring-white hover:bg-indigo-700 disabled:opacity-60 lg:mt-0 lg:flex lg:h-11 lg:w-auto lg:gap-1 lg:rounded-xl lg:px-4 lg:text-sm lg:font-semibold lg:shadow lg:ring-0"
         >
           <span aria-hidden>+</span>
           <span className="hidden lg:inline">ลงรายการ</span>

@@ -2,7 +2,8 @@
 
 /**
  * ActualView — แท็บ "รายการ" (หน้าแรกของแอป) — Phase 11.3 + 12.1 + 12.1b
- *   การ์ดคงเหลือ/งบ (BalanceHero) → ค้นหา → รายการแยกตามวัน → เทียบงบรายกลุ่ม → Sankey ของจริง
+ *   การ์ดคงเหลือ/งบ (BalanceHero) → ค้นหา → รายการแยกตามวัน
+ *   (เทียบงบรายกลุ่ม + Sankey ตามจริง ย้ายไปแท็บ "สรุป" ใน Phase 12.3)
  * - ลงรายการใหม่ = ปุ่ม + ในแถบล่าง (PlanContent) / แตะรายการ = แผ่นแก้ไข (ลบได้ในแผ่น)
  * - ค้นหา/กรองคร่อมทุกรอบ (คำค้นว่าง = แสดงตามรอบ)
  * - ตัวเลขทั้งหมดคำนวณใน Domain (cycleSummary / dailyView / searchTransactions)
@@ -13,15 +14,13 @@ import { formatBaht } from "@/domain/entities/Money";
 import { cycleContaining, daysLeftInCycle, shiftCycle } from "@/domain/entities/PayCycle";
 import { payCycleStartDayOf, type Plan } from "@/domain/entities/Plan";
 import type { Transaction, TransactionInput } from "@/domain/entities/Transaction";
-import { compareWithBudget, summarizeCycle, transactionsInCycle } from "@/domain/services/cycleSummary";
+import { summarizeCycle, transactionsInCycle } from "@/domain/services/cycleSummary";
 import { budgetPace } from "@/domain/services/dailyView";
 import { isEmptyQuery, searchTransactions, type TransactionQuery } from "@/domain/services/searchTransactions";
 import { dueAlerts } from "@/domain/services/walletBalances";
 import type { RunUseCase } from "../../hooks/usePlan";
 import type { TransactionsState } from "../../hooks/useTransactions";
-import { ActualFlowSection } from "./ActualFlowSection";
 import { BalanceHero } from "./BalanceHero";
-import { BudgetBars } from "./BudgetBars";
 import { CycleSettings } from "./CycleSettings";
 import { QuickAddSheet } from "./QuickAddSheet";
 import { TransactionList } from "./TransactionList";
@@ -61,7 +60,7 @@ export function ActualView({ plan, run, today, tx, onQuickAdd }: ActualViewProps
     <div className="space-y-5">
       {/* บัตรเครดิตใกล้/เกินกำหนดชำระ (R28) — เห็นทันทีที่เปิดแอป */}
       <DueAlerts alerts={dueAlerts(plan, transactions, today)} onPay={(a) => onQuickAdd(payCardPreset(plan, a.wallet, a.statement.remaining))} />
-      {/* มือถือ: การ์ด → ค้นหา + รายการ → เทียบงบ / คอมฯ: ซ้าย = การ์ด + เทียบงบ, ขวา = ค้นหา + รายการ */}
+      {/* มือถือ: การ์ด → ค้นหา + รายการ → ตั้งรอบ / คอมฯ: ซ้าย = การ์ด + ตั้งรอบ, ขวา = ค้นหา + รายการ */}
       <div className="grid gap-5 lg:grid-cols-[2fr_3fr] lg:items-start">
         <div className={searching ? "hidden" : ""}>
           {!searching && (
@@ -98,13 +97,11 @@ export function ActualView({ plan, run, today, tx, onQuickAdd }: ActualViewProps
           )}
         </div>
         {!searching && (
-          <div className="space-y-2 lg:col-start-1 lg:row-start-2">
-            <BudgetBars comparison={compareWithBudget(plan, transactions, cycle)} />
+          <div className="lg:col-start-1 lg:row-start-2">
             <CycleSettings startDay={startDay} onChange={(day) => run((p, c) => setPayCycleStartDay(p, day, c))} />
           </div>
         )}
       </div>
-      {!searching && <ActualFlowSection plan={plan} transactions={transactions} cycle={cycle} summary={summary} />}
 
       {editing && (
         <QuickAddSheet

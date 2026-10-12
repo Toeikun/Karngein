@@ -10,6 +10,10 @@ test("ทุกแท็บ: กล่องไม่ทับ/ไม่ชิ�
   await page.getByRole("tab", { name: "วางแผน" }).click();
   await page.getByRole("button", { name: "มนุษย์เงินเดือน" }).click(); // มีข้อมูล → มีการ์ดครบทุกส่วน
 
+  // หัวเว็บ: ชื่อแอปต้องไม่ถูกตัด (เคยถูกป้ายสถานะ/กระดิ่งดันจนเหลือ "Karn…")
+  await expect(page.getByRole("button", { name: /การแจ้งเตือน/ })).toBeVisible();
+  expect(await page.getByRole("heading", { level: 1 }).evaluate((h) => h.scrollWidth <= h.clientWidth)).toBe(true);
+
   const tabs = await page.getByRole("tab").filter({ visible: true }).allTextContents();
   for (const name of tabs) {
     await page.getByRole("tab", { name: name.replace(/^\S+?(?=[ก-๙])/u, "") }).click();

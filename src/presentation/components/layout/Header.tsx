@@ -20,6 +20,9 @@ const STATUS_ICON: Record<SaveStatus | "offline", string> = {
   offline: "max-sm:before:content-['📴']",
 };
 
+/** ช่องให้ส่วนอื่นวางของลงหัวเว็บผ่าน portal (เช่น กระดิ่งแจ้งเตือนจาก PlanContent) */
+export const HEADER_SLOT_ID = "karngein-header-slot";
+
 interface HeaderProps {
   status: SaveStatus;
   /** โหมดคลาวด์ + ออฟไลน์ → แจ้งว่าบันทึกในเครื่องไว้ก่อน */
@@ -33,9 +36,9 @@ export function Header({ status, offline = false, account }: HeaderProps) {
     status === "error" ? "bg-red-100 text-red-700" : offline ? "bg-amber-100 text-amber-800" : "bg-white text-slate-500 ring-1 ring-slate-200";
 
   return (
-    <header className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-indigo-600 text-white shadow" aria-hidden>
+    <header className="flex items-center justify-between gap-2 sm:gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-indigo-600 text-white shadow sm:size-11" aria-hidden>
           {/* โลโก้: เงินหลายทางไหลมารวมกัน (เหมือนไอคอนแอปใน public/icons) */}
           <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6c6 0 6 6 11 6h7" />
@@ -44,11 +47,12 @@ export function Header({ status, offline = false, account }: HeaderProps) {
           </svg>
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold text-indigo-700 sm:text-2xl">Karngein</h1>
+          <h1 className="truncate text-lg font-bold text-indigo-700 sm:text-2xl">Karngein</h1>
           <p className="hidden text-sm text-slate-500 sm:block">วางแผนรายได้-รายจ่าย เห็นภาพการเงินทั้งหมด</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div id={HEADER_SLOT_ID} className="contents" />
         <span
           role="status"
           aria-label="สถานะการบันทึก"
